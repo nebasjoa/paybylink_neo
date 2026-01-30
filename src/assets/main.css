@@ -1,0 +1,224 @@
+:root {
+  /* Brand / Accent */
+  --accent-50: #eef2ff;
+  --accent-100: #e0e7ff;
+  --accent-200: #c7d2fe;
+  --accent-300: #a5b4fc;
+  --accent-400: #818cf8;
+  --accent-500: #6366f1; /* primary */
+  --accent-600: #4f46e5;
+  --accent-700: #4338ca;
+  --accent-800: #3730a3;
+  --accent-900: #312e81;
+
+  /* Neutrals (UI surfaces) */
+  --bg: #f6f7fb; /* app background */
+  --surface: #ffffff; /* cards/panels */
+  --surface-2: #f2f4f8; /* subtle panels */
+  --border: rgba(15, 23, 42, 0.1); /* slate-ish */
+  --border-2: rgba(15, 23, 42, 0.16);
+
+  /* Text */
+  --text: #0f172a; /* slate-900 */
+  --text-2: #334155; /* slate-700 */
+  --muted: #64748b; /* slate-500 */
+  --muted-2: #94a3b8; /* slate-400 */
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 10px 24px rgba(15, 23, 42, 0.1);
+
+  /* Semantic (status) */
+  --success-bg: #ecfdf5;
+  --success: #10b981;
+  --success-text: #065f46;
+
+  --warning-bg: #fffbeb;
+  --warning: #f59e0b;
+  --warning-text: #92400e;
+
+  --danger-bg: #fef2f2;
+  --danger: #ef4444;
+  --danger-text: #991b1b;
+
+  --info-bg: #eff6ff;
+  --info: #3b82f6;
+  --info-text: #1e3a8a;
+
+  /* Inputs */
+  --input-bg: #ffffff;
+  --input-border: rgba(15, 23, 42, 0.14);
+  --focus: rgba(99, 102, 241, 0.35); /* accent-500 with alpha */
+
+  /* Radii */
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 16px;
+
+  /* Spacing */
+  --space-1: 6px;
+  --space-2: 10px;
+  --space-3: 14px;
+  --space-4: 18px;
+
+  --font-sans:
+    "Manrope", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Ubuntu, Arial, sans-serif;
+}
+
+* {
+  outline: none;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--text);
+  margin: 0;
+}
+
+/* Large desktop (1440px+) */
+@media (min-width: 1440px) {
+  .container {
+    max-width: 1320px;
+  }
+}
+
+/* Desktop (1200–1439px) */
+@media (max-width: 1439px) {
+  .container {
+    max-width: 1200px;
+  }
+}
+
+/* Laptop (1024–1199px) */
+@media (max-width: 1199px) {
+  .container {
+    max-width: 1024px;
+  }
+}
+
+/* Tablet landscape (900–1023px) */
+@media (max-width: 1023px) {
+  .container {
+    max-width: 900px;
+  }
+
+  .hide-tablet {
+    display: none !important;
+  }
+}
+
+/* Tablet portrait (768–899px) */
+@media (max-width: 899px) {
+  .container {
+    max-width: 768px;
+  }
+
+  .stack-tablet {
+    flex-direction: column !important;
+  }
+}
+
+/* Large phones (600–767px) */
+@media (max-width: 767px) {
+  .container {
+    max-width: 100%;
+    padding-inline: 14px;
+  }
+
+  .hide-mobile {
+    display: none !important;
+  }
+
+  .mobile-stack {
+    flex-direction: column !important;
+    gap: 12px;
+  }
+
+  .full-mobile {
+    width: 100% !important;
+  }
+}
+
+/* Small phones (≤480px) */
+@media (max-width: 480px) {
+  .container {
+    padding-inline: 12px;
+  }
+
+  .tight-mobile {
+    padding: 8px !important;
+  }
+
+  .text-mobile {
+    font-size: 14px;
+  }
+}
+
+/* Main app container */
+.app,
+.container {
+  width: 100%;
+  /* max-width: 1280px; */
+  margin-inline: auto;
+  /* padding-inline: 16px; */
+}
+
+/* Public payment pages should be narrower */
+.container--public {
+  max-width: 880px;
+}
+
+h1 {
+  font-size: 28px;
+}
+h2 {
+  font-size: 22px;
+}
+h3 {
+  font-size: 18px;
+}
+
+@media (max-width: 767px) {
+  h1 {
+    font-size: 22px;
+  }
+  h2 {
+    font-size: 18px;
+  }
+  h3 {
+    font-size: 16px;
+  }
+}
+
+/* Desktop sidebar */
+.sidebar {
+  width: 280px;
+}
+
+/* Tablet */
+@media (max-width: 1023px) {
+  .sidebar {
+    width: 220px;
+  }
+}
+
+/* Mobile → off-canvas */
+@media (max-width: 900px) {
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    z-index: 50;
+  }
+
+  .sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+}
