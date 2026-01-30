@@ -15,42 +15,63 @@
         <h2>Link details</h2>
         <form class="form">
           <label class="field">
+            <span>Customer name</span>
+            <input v-model="form.customerName" type="text" placeholder="Alex Rivera" />
+          </label>
+
+          <label class="field">
+            <span>Customer email</span>
+            <input v-model="form.customerEmail" type="email" placeholder="alex@studio.io" />
+          </label>
+
+          <div class="two-col">
+            <label class="field">
+              <span>Company</span>
+              <input v-model="form.customerCompany" type="text" placeholder="Rivera Studio" />
+            </label>
+            <label class="field">
+              <span>Phone number</span>
+              <input v-model="form.customerPhone" type="tel" placeholder="+1 (555) 120-4820" />
+            </label>
+          </div>
+
+          <label class="field">
             <span>Link name</span>
-            <input type="text" placeholder="Website redesign deposit" />
+            <input v-model="form.linkName" type="text" placeholder="Website redesign deposit" />
           </label>
 
           <label class="field">
             <span>Amount</span>
             <div class="input-row">
               <span class="pill">USD</span>
-              <input type="number" placeholder="2500" />
+              <input v-model="form.amount" type="number" placeholder="2500" />
             </div>
           </label>
 
           <label class="field">
             <span>Description</span>
-            <textarea rows="4" placeholder="What is this payment for?"></textarea>
+            <textarea v-model="form.description" rows="4" placeholder="What is this payment for?"></textarea>
           </label>
 
           <div class="two-col">
             <label class="field">
               <span>Expires</span>
-              <input type="date" />
+              <input v-model="form.expires" type="date" />
             </label>
             <label class="field">
               <span>Invoice #</span>
-              <input type="text" placeholder="INV-2041" />
+              <input v-model="form.invoice" type="text" placeholder="INV-2041" />
             </label>
           </div>
 
           <div class="toggle-row">
             <label class="switch">
-              <input type="checkbox" checked />
+              <input v-model="form.requireShipping" type="checkbox" />
               <span class="switch-ui"></span>
               Require shipping address
             </label>
             <label class="switch">
-              <input type="checkbox" />
+              <input v-model="form.allowTips" type="checkbox" />
               <span class="switch-ui"></span>
               Allow tips
             </label>
@@ -81,7 +102,43 @@
   </section>
 </template>
 
-<script></script>
+<script>
+export default {
+  name: "CreateLinkView",
+  data() {
+    return {
+      form: {
+        customerName: "",
+        customerEmail: "",
+        customerCompany: "",
+        customerPhone: "",
+        linkName: "",
+        amount: "",
+        description: "",
+        expires: "",
+        invoice: "",
+        requireShipping: true,
+        allowTips: false,
+      },
+    };
+  },
+  mounted() {
+    const { query } = this.$route;
+    const prefillMap = {
+      customerName: query.customerName,
+      customerEmail: query.customerEmail,
+      customerCompany: query.customerCompany,
+      customerPhone: query.customerPhone,
+    };
+
+    Object.entries(prefillMap).forEach(([key, value]) => {
+      if (typeof value === "string" && value.trim()) {
+        this.form[key] = value;
+      }
+    });
+  },
+};
+</script>
 
 <style scoped>
 .create-link {

@@ -13,6 +13,7 @@
                 <nav class="nav">
                     <RouterLink class="nav-link" to="/">Overview</RouterLink>
                     <RouterLink class="nav-link" to="/links">Payment links</RouterLink>
+                    <RouterLink class="nav-link" to="/customers">Customers</RouterLink>
                     <RouterLink class="nav-link" to="/transactions">Transactions</RouterLink>
                     <RouterLink class="nav-link" to="/settings">Settings</RouterLink>
                 </nav>
