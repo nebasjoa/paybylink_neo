@@ -72,6 +72,84 @@
       </div>
 
       <div class="panel">
+        <h2>Payment service providers</h2>
+        <p class="panel-subtitle">
+          Add providers to route payments and manage processing credentials.
+        </p>
+        <div class="form">
+          <label class="field">
+            <span>Provider</span>
+            <select>
+              <option>Stripe</option>
+              <option>Adyen</option>
+              <option>PayPal</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Merchant account ID</span>
+            <input type="text" placeholder="acct_1234..." />
+          </label>
+          <button class="ghost-btn inline-btn" type="button">Add provider</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Link delivery</h2>
+        <p class="panel-subtitle">
+          Choose how payment links are sent to customers.
+        </p>
+        <div class="form">
+          <label class="field">
+            <span>Send link via</span>
+            <select>
+              <option>Email</option>
+              <option>SMS</option>
+              <option>WhatsApp</option>
+              <option>Copy link</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Fallback channel</span>
+            <select>
+              <option>None</option>
+              <option>Email</option>
+              <option>SMS</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Email template management</h2>
+        <p class="panel-subtitle">
+          Control the messaging for new links, reminders, and receipts.
+        </p>
+        <div class="template-list">
+          <div class="template-item">
+            <div>
+              <h3>Payment link created</h3>
+              <p class="muted">Sent when a new link is generated.</p>
+            </div>
+            <button class="ghost-btn inline-btn" type="button">Edit</button>
+          </div>
+          <div class="template-item">
+            <div>
+              <h3>Payment reminder</h3>
+              <p class="muted">Used for scheduled nudges.</p>
+            </div>
+            <button class="ghost-btn inline-btn" type="button">Edit</button>
+          </div>
+          <div class="template-item">
+            <div>
+              <h3>Receipt confirmation</h3>
+              <p class="muted">Sent after successful payment.</p>
+            </div>
+            <button class="ghost-btn inline-btn" type="button">Edit</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
         <h2>Notifications</h2>
         <div class="toggle-list">
           <label class="switch">
@@ -129,6 +207,12 @@
   margin: 0 0 16px;
 }
 
+.panel-subtitle {
+  margin: -8px 0 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .form {
   display: grid;
   gap: 14px;
@@ -154,6 +238,35 @@
 .field select:focus {
   border-color: var(--accent-400);
   box-shadow: 0 0 0 3px var(--focus);
+}
+
+.inline-btn {
+  justify-self: flex-start;
+}
+
+.template-list {
+  display: grid;
+  gap: 12px;
+}
+
+.template-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.template-item h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+
+.template-item p {
+  margin: 0;
 }
 
 .toggle-list {
