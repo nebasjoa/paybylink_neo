@@ -95,14 +95,20 @@
             <strong>$2,427.50</strong>
           </div>
         </div>
-        <button class="primary-btn">Create link</button>
+        <button class="primary-btn" type="button" :disabled="isSubmitting" @click="createLink">
+          {{ isSubmitting ? "Creating..." : "Create link" }}
+        </button>
         <button class="ghost-btn full">Save draft</button>
+        <p v-if="submitError" class="form-message error">{{ submitError }}</p>
+        <p v-else-if="submitSuccess" class="form-message success">{{ submitSuccess }}</p>
       </div>
     </div>
   </section>
 </template>
 
 <script>
+import axios from "axios";
+
 export default {
   name: "CreateLinkView",
   data() {
@@ -120,6 +126,9 @@ export default {
         requireShipping: true,
         allowTips: false,
       },
+      isSubmitting: false,
+      submitError: "",
+      submitSuccess: "",
     };
   },
   mounted() {
@@ -136,6 +145,40 @@ export default {
         this.form[key] = value;
       }
     });
+  },
+  methods: {
+    async createLink() {
+      this.isSubmitting = true;
+      this.submitError = "";
+      this.submitSuccess = "";
+
+      const payload = {
+        customer: {
+          name: this.form.customerName,
+          email: this.form.customerEmail,
+          company: this.form.customerCompany,
+          phone: this.form.customerPhone,
+        },
+        linkName: this.form.linkName,
+        amount: this.form.amount ? Number(this.form.amount) : null,
+        description: this.form.description,
+        expires: this.form.expires || null,
+        invoice: this.form.invoice || null,
+        requireShipping: this.form.requireShipping,
+        allowTips: this.form.allowTips,
+      };
+
+      try {
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || "";
+        await axios.post(`${baseUrl}/api/payment-links`, payload);
+        this.submitSuccess = "Payment link created successfully.";
+      } catch (error) {
+        const message = error?.response?.data?.message || error?.message || "Request failed";
+        this.submitError = message;
+      } finally {
+        this.isSubmitting = false;
+      }
+    },
   },
 };
 </script>
@@ -306,6 +349,11 @@ export default {
   cursor: pointer;
 }
 
+.primary-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .ghost-btn {
   border: 1px solid var(--border);
   background: var(--surface);
@@ -321,6 +369,19 @@ export default {
 
 .muted {
   color: var(--muted);
+}
+
+.form-message {
+  margin: 0;
+  font-size: 13px;
+}
+
+.form-message.error {
+  color: var(--danger);
+}
+
+.form-message.success {
+  color: var(--success);
 }
 
 @media (max-width: 1023px) {
