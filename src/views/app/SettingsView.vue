@@ -89,6 +89,10 @@
             <span>Merchant account ID</span>
             <input type="text" placeholder="acct_1234..." />
           </label>
+          <label class="field">
+            <span>API key</span>
+            <input type="password" placeholder="sk_live_••••••••" />
+          </label>
           <button class="ghost-btn inline-btn" type="button">Add provider</button>
         </div>
       </div>
