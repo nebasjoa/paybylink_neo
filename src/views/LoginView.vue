@@ -37,16 +37,19 @@
             <span>or</span>
           </div>
 
-          <form class="auth-form">
+          <form class="auth-form" @submit.prevent="handleLogin">
             <label class="field">
               <span>Email</span>
-              <input type="email" placeholder="you@company.com" />
+              <input v-model="form.email" type="email" placeholder="you@company.com" required />
             </label>
             <label class="field">
               <span>Password</span>
-              <input type="password" placeholder="Your password" />
+              <input v-model="form.password" type="password" placeholder="Your password" required />
             </label>
-            <button class="primary-btn" type="button">Sign in</button>
+            <button class="primary-btn" type="submit" :disabled="isSubmitting">
+              {{ isSubmitting ? "Signing in..." : "Sign in" }}
+            </button>
+            <p v-if="submitError" class="form-message error">{{ submitError }}</p>
           </form>
 
           <div class="aux-row">
@@ -68,7 +71,37 @@
 </template>
 
 <script setup>
-import { RouterLink } from "vue-router";
+import { ref } from "vue";
+import { RouterLink, useRouter } from "vue-router";
+import { login } from "@/services/authApi";
+
+const router = useRouter();
+const isSubmitting = ref(false);
+const submitError = ref("");
+const form = ref({
+  email: "",
+  password: "",
+});
+
+const handleLogin = async () => {
+  isSubmitting.value = true;
+  submitError.value = "";
+
+  const payload = {
+    email: form.value.email.trim(),
+    password: form.value.password,
+  };
+
+  const response = await login(payload);
+  if (response?.error) {
+    submitError.value = response.error;
+    isSubmitting.value = false;
+    return;
+  }
+
+  router.push({ name: "Home" });
+  isSubmitting.value = false;
+};
 </script>
 
 <style scoped>
@@ -234,6 +267,20 @@ import { RouterLink } from "vue-router";
   border-radius: 12px;
   font-weight: 600;
   cursor: pointer;
+}
+
+.primary-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.form-message {
+  margin: 0;
+  font-size: 12px;
+}
+
+.form-message.error {
+  color: var(--danger);
 }
 
 .aux-row {

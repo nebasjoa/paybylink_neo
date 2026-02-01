@@ -40,7 +40,11 @@
             <textarea v-model="form.notes" rows="3" placeholder="Preferred billing cadence, context, etc."></textarea>
           </label>
 
-          <button class="primary-btn" type="submit">Save customer</button>
+          <button class="primary-btn" type="submit" :disabled="isSubmitting">
+            {{ isSubmitting ? "Saving..." : "Save customer" }}
+          </button>
+          <p v-if="submitError" class="form-message error">{{ submitError }}</p>
+          <p v-else-if="submitSuccess" class="form-message success">{{ submitSuccess }}</p>
         </form>
       </div>
 
@@ -57,7 +61,10 @@
         </div>
 
         <div class="customer-list">
-          <div v-for="customer in filteredCustomers" :key="customer.id" class="customer-card">
+          <div v-if="loading" class="customer-card muted">Loading customers...</div>
+          <div v-else-if="loadError" class="customer-card muted">{{ loadError }}</div>
+          <div v-else-if="!filteredCustomers.length" class="customer-card muted">No customers yet.</div>
+          <div v-else v-for="customer in filteredCustomers" :key="customer.id" class="customer-card">
             <div class="customer-main">
               <div>
                 <div class="customer-name">{{ customer.name }}</div>
@@ -84,11 +91,18 @@
 </template>
 
 <script>
+import { createCustomer, listCustomers } from "@/services/customersApi";
+
 export default {
   name: "CustomersView",
   data() {
     return {
       search: "",
+      isSubmitting: false,
+      submitError: "",
+      submitSuccess: "",
+      loading: true,
+      loadError: "",
       form: {
         name: "",
         email: "",
@@ -96,36 +110,11 @@ export default {
         phone: "",
         notes: "",
       },
-      customers: [
-        {
-          id: 1,
-          name: "Nova & Co.",
-          email: "billing@novaco.io",
-          company: "Nova & Co.",
-          phone: "+1 (555) 222-9134",
-          notes: "Prefers quarterly invoices. Send reminders three days before due date.",
-          lastActivity: "Paid 2 days ago",
-        },
-        {
-          id: 2,
-          name: "Marcus Lee",
-          email: "marcus@brightlabs.com",
-          company: "Bright Labs",
-          phone: "+1 (555) 994-1022",
-          notes: "Onboarding package invoice.",
-          lastActivity: "Invoice pending",
-        },
-        {
-          id: 3,
-          name: "Kendall Hart",
-          email: "kendall@hartcollective.co",
-          company: "Hart Collective",
-          phone: "",
-          notes: "Monthly retainer.",
-          lastActivity: "Last link sent 6 days ago",
-        },
-      ],
+      customers: [],
     };
+  },
+  mounted() {
+    this.loadCustomers();
   },
   computed: {
     filteredCustomers() {
@@ -141,15 +130,47 @@ export default {
     },
   },
   methods: {
-    addCustomer() {
-      const newCustomer = {
-        id: Date.now(),
+    async loadCustomers() {
+      this.loading = true;
+      this.loadError = "";
+      const response = await listCustomers();
+      if (response?.error) {
+        this.loadError = response.error;
+        this.customers = [];
+      } else {
+        this.customers = Array.isArray(response) ? response : response?.data || [];
+      }
+      this.loading = false;
+    },
+    async addCustomer() {
+      this.isSubmitting = true;
+      this.submitError = "";
+      this.submitSuccess = "";
+
+      const payload = {
         name: this.form.name.trim(),
         email: this.form.email.trim(),
         company: this.form.company.trim(),
         phone: this.form.phone.trim(),
         notes: this.form.notes.trim(),
-        lastActivity: "Just added",
+      };
+
+      const response = await createCustomer(payload);
+      if (response?.error) {
+        this.submitError = response.error;
+        this.isSubmitting = false;
+        return;
+      }
+
+      const created = response?.data || response;
+      const newCustomer = {
+        id: created?.id || Date.now(),
+        name: created?.name || payload.name,
+        email: created?.email || payload.email,
+        company: created?.company || payload.company,
+        phone: created?.phone || payload.phone,
+        notes: created?.notes || payload.notes,
+        lastActivity: created?.lastActivity || "Just added",
       };
       this.customers = [newCustomer, ...this.customers];
       this.form = {
@@ -159,6 +180,8 @@ export default {
         phone: "",
         notes: "",
       };
+      this.submitSuccess = "Customer saved successfully.";
+      this.isSubmitting = false;
     },
     createLink(customer) {
       this.$router.push({
@@ -261,6 +284,24 @@ export default {
   border-radius: 12px;
   font-weight: 600;
   cursor: pointer;
+}
+
+.primary-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.form-message {
+  margin: 0;
+  font-size: 13px;
+}
+
+.form-message.error {
+  color: var(--danger);
+}
+
+.form-message.success {
+  color: var(--success);
 }
 
 .ghost-btn {

@@ -62,6 +62,11 @@ const routes = [
     component: () => import("@/views/RegistrationView.vue"),
   },
   {
+    path: "/logout",
+    name: "Logout",
+    component: () => import("@/views/LogoutView.vue"),
+  },
+  {
     path: "/link/:slug",
     name: "PublicPaymentLink",
     component: () => import("@/views/public/PublicLinkRedirectView.vue"),

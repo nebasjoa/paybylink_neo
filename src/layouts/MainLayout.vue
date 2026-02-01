@@ -39,6 +39,7 @@
 
                     <div class="topbar-actions">
                         <button class="ghost-btn" @click="routeTo('CreateLink')">Create link</button>
+                        <RouterLink class="ghost-btn" to="/logout">Logout</RouterLink>
                         <div class="avatar">NS</div>
                     </div>
                 </div>
