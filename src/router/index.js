@@ -23,6 +23,11 @@ const routes = [
         component: () => import("@/views/app/PaymentLinksView.vue"),
       },
       {
+        path: "links/created",
+        name: "LinkCreated",
+        component: () => import("@/views/app/LinkCreatedView.vue"),
+      },
+      {
         path: "links/:id",
         name: "PaymentLinkDetails",
         component: () => import("@/views/app/LinksView.vue"),
@@ -55,6 +60,16 @@ const routes = [
     path: "/register",
     name: "Registration",
     component: () => import("@/views/RegistrationView.vue"),
+  },
+  {
+    path: "/link/:slug",
+    name: "PublicPaymentLink",
+    component: () => import("@/views/public/PublicLinkRedirectView.vue"),
+  },
+  {
+    path: "/payment-cancel",
+    name: "PaymentCancel",
+    component: () => import("@/views/public/PaymentCancelView.vue"),
   },
 
   { path: "/:pathMatch(.*)*", name: "NotFound", component: () => import("@/views/NotFoundView.vue") },

@@ -5,7 +5,9 @@
         <h1>Settings</h1>
         <p class="muted">Manage your workspace preferences and payouts.</p>
       </div>
-      <button class="ghost-btn">Save changes</button>
+      <button class="ghost-btn" :disabled="saving" @click="handleSave">
+        {{ saving ? "Saving..." : "Save changes" }}
+      </button>
     </div>
 
     <div class="grid">
@@ -14,15 +16,15 @@
         <div class="form">
           <label class="field">
             <span>Full name</span>
-            <input type="text" placeholder="Nebojsa Stojanovic" />
+            <input v-model="form.profile.fullName" type="text" placeholder="Nebojsa Stojanovic" />
           </label>
           <label class="field">
             <span>Email</span>
-            <input type="email" placeholder="nebojsa@paybylink.com" />
+            <input v-model="form.profile.email" type="email" placeholder="nebojsa@paybylink.com" />
           </label>
           <label class="field">
             <span>Role</span>
-            <input type="text" placeholder="Owner" />
+            <input v-model="form.profile.role" type="text" placeholder="Owner" />
           </label>
         </div>
       </div>
@@ -32,18 +34,18 @@
         <div class="form">
           <label class="field">
             <span>Business name</span>
-            <input type="text" placeholder="PayByLink LLC" />
+            <input v-model="form.business.name" type="text" placeholder="PayByLink LLC" />
           </label>
           <label class="field">
             <span>Support email</span>
-            <input type="email" placeholder="support@paybylink.com" />
+            <input v-model="form.business.supportEmail" type="email" placeholder="support@paybylink.com" />
           </label>
           <label class="field">
             <span>Default currency</span>
-            <select>
-              <option>USD</option>
-              <option>EUR</option>
-              <option>GBP</option>
+            <select v-model="form.business.defaultCurrency">
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
+              <option value="GBP">GBP</option>
             </select>
           </label>
         </div>
@@ -54,19 +56,23 @@
         <div class="form">
           <label class="field">
             <span>Bank account</span>
-            <input type="text" placeholder="**** 4921" />
+            <input v-model="form.payouts.bankAccount" type="text" placeholder="**** 4921" />
           </label>
           <label class="field">
             <span>Payout schedule</span>
-            <select>
-              <option>Daily</option>
-              <option>Weekly</option>
-              <option>Monthly</option>
+            <select v-model="form.payouts.schedule">
+              <option value="Daily">Daily</option>
+              <option value="Weekly">Weekly</option>
+              <option value="Monthly">Monthly</option>
             </select>
           </label>
           <label class="field">
             <span>Statement descriptor</span>
-            <input type="text" placeholder="PAYBYLINK*STUDIO" />
+            <input
+              v-model="form.payouts.statementDescriptor"
+              type="text"
+              placeholder="PAYBYLINK*STUDIO"
+            />
           </label>
         </div>
       </div>
@@ -79,19 +85,24 @@
         <div class="form">
           <label class="field">
             <span>Provider</span>
-            <select>
+            <select v-model="form.providers.provider">
               <option>Stripe</option>
               <option>Adyen</option>
               <option>PayPal</option>
+              <option>Dummy PSP</option>
             </select>
           </label>
           <label class="field">
             <span>Merchant account ID</span>
-            <input type="text" placeholder="acct_1234..." />
+            <input v-model="form.providers.merchantAccountId" type="text" placeholder="acct_1234..." />
           </label>
           <label class="field">
             <span>API key</span>
-            <input type="password" placeholder="sk_live_••••••••" />
+            <input v-model="form.providers.apiKey" type="password" placeholder="sk_live_********" />
+          </label>
+          <label v-if="isDev" class="field">
+            <span>Display ID (dev only)</span>
+            <input v-model="form.providers.displayId" type="text" placeholder="test-display-id" />
           </label>
           <button class="ghost-btn inline-btn" type="button">Add provider</button>
         </div>
@@ -105,19 +116,19 @@
         <div class="form">
           <label class="field">
             <span>Send link via</span>
-            <select>
-              <option>Email</option>
-              <option>SMS</option>
-              <option>WhatsApp</option>
-              <option>Copy link</option>
+            <select v-model="form.linkDelivery.sendVia">
+              <option value="Email">Email</option>
+              <option value="SMS">SMS</option>
+              <option value="WhatsApp">WhatsApp</option>
+              <option value="Copy link">Copy link</option>
             </select>
           </label>
           <label class="field">
             <span>Fallback channel</span>
-            <select>
-              <option>None</option>
-              <option>Email</option>
-              <option>SMS</option>
+            <select v-model="form.linkDelivery.fallbackChannel">
+              <option value="None">None</option>
+              <option value="Email">Email</option>
+              <option value="SMS">SMS</option>
             </select>
           </label>
         </div>
@@ -157,27 +168,136 @@
         <h2>Notifications</h2>
         <div class="toggle-list">
           <label class="switch">
-            <input type="checkbox" checked />
+            <input v-model="form.notifications.payoutsCompleted" type="checkbox" />
             <span class="switch-ui"></span>
             Payouts completed
           </label>
           <label class="switch">
-            <input type="checkbox" checked />
+            <input v-model="form.notifications.newPaymentReceived" type="checkbox" />
             <span class="switch-ui"></span>
             New payment received
           </label>
           <label class="switch">
-            <input type="checkbox" />
+            <input v-model="form.notifications.weeklySummary" type="checkbox" />
             <span class="switch-ui"></span>
             Weekly performance summary
           </label>
         </div>
       </div>
     </div>
+
+    <p v-if="error" class="form-message error">{{ error }}</p>
+    <p v-else-if="success" class="form-message success">{{ success }}</p>
   </section>
 </template>
 
-<script setup></script>
+<script setup>
+import { onMounted, reactive, ref } from "vue";
+import { getSettings, saveSettings } from "@/services/settingsApi";
+
+const saving = ref(false);
+const error = ref("");
+const success = ref("");
+const isDev = import.meta.env.VITE_ENV === "development";
+
+const defaultSettings = () => ({
+  profile: {
+    fullName: "",
+    email: "",
+    role: "",
+  },
+  business: {
+    name: "",
+    supportEmail: "",
+    defaultCurrency: "USD",
+  },
+  payouts: {
+    bankAccount: "",
+    schedule: "Weekly",
+    statementDescriptor: "",
+  },
+  providers: {
+    provider: "Stripe",
+    merchantAccountId: "",
+    apiKey: "",
+    displayId: "",
+  },
+  linkDelivery: {
+    sendVia: "Email",
+    fallbackChannel: "None",
+  },
+  notifications: {
+    payoutsCompleted: true,
+    newPaymentReceived: true,
+    weeklySummary: false,
+  },
+});
+
+const form = reactive(defaultSettings());
+
+const applySettings = (data) => {
+  const safe = data || {};
+  form.profile.fullName = safe.profile?.fullName ?? "";
+  form.profile.email = safe.profile?.email ?? "";
+  form.profile.role = safe.profile?.role ?? "";
+
+  form.business.name = safe.business?.name ?? "";
+  form.business.supportEmail = safe.business?.supportEmail ?? "";
+  form.business.defaultCurrency = safe.business?.defaultCurrency ?? "USD";
+
+  form.payouts.bankAccount = safe.payouts?.bankAccount ?? "";
+  form.payouts.schedule = safe.payouts?.schedule ?? "Weekly";
+  form.payouts.statementDescriptor = safe.payouts?.statementDescriptor ?? "";
+
+  form.providers.provider = safe.providers?.provider ?? "Stripe";
+  form.providers.merchantAccountId = safe.providers?.merchantAccountId ?? "";
+  form.providers.apiKey = safe.providers?.apiKey ?? "";
+  form.providers.displayId = safe.providers?.displayId ?? "";
+
+  form.linkDelivery.sendVia = safe.linkDelivery?.sendVia ?? "Email";
+  form.linkDelivery.fallbackChannel = safe.linkDelivery?.fallbackChannel ?? "None";
+
+  form.notifications.payoutsCompleted = safe.notifications?.payoutsCompleted ?? true;
+  form.notifications.newPaymentReceived = safe.notifications?.newPaymentReceived ?? true;
+  form.notifications.weeklySummary = safe.notifications?.weeklySummary ?? false;
+};
+
+const loadSettings = async () => {
+  error.value = "";
+  const response = await getSettings();
+  if (response?.error) {
+    error.value = response.error;
+    return;
+  }
+  applySettings(response?.data || response);
+};
+
+const handleSave = async () => {
+  saving.value = true;
+  error.value = "";
+  success.value = "";
+
+  const payload = {
+    profile: { ...form.profile },
+    business: { ...form.business },
+    payouts: { ...form.payouts },
+    providers: { ...form.providers },
+    linkDelivery: { ...form.linkDelivery },
+    notifications: { ...form.notifications },
+  };
+
+  const response = await saveSettings(payload);
+  if (response?.error) {
+    error.value = response.error;
+  } else {
+    success.value = "Settings saved successfully.";
+    applySettings(response?.data || payload);
+  }
+  saving.value = false;
+};
+
+onMounted(loadSettings);
+</script>
 
 <style scoped>
 .settings {
@@ -339,6 +459,19 @@
   color: var(--muted);
 }
 
+.form-message {
+  margin: 0;
+  font-size: 13px;
+}
+
+.form-message.error {
+  color: var(--danger);
+}
+
+.form-message.success {
+  color: var(--success);
+}
+
 @media (max-width: 1023px) {
   .grid {
     grid-template-columns: 1fr;
@@ -352,3 +485,6 @@
   }
 }
 </style>
+
+
+

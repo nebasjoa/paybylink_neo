@@ -64,6 +64,16 @@
             </label>
           </div>
 
+          <label class="field">
+            <span>Attach PDF invoice (optional)</span>
+            <input
+              type="file"
+              accept=".pdf,application/pdf"
+              @change="handleInvoiceUpload"
+            />
+            <span v-if="invoiceError" class="field-error">{{ invoiceError }}</span>
+          </label>
+
           <div class="toggle-row">
             <label class="switch">
               <input v-model="form.requireShipping" type="checkbox" />
@@ -108,6 +118,7 @@
 
 <script>
 import axios from "axios";
+import { getSettings } from "@/services/settingsApi";
 
 export default {
   name: "CreateLinkView",
@@ -129,6 +140,13 @@ export default {
       isSubmitting: false,
       submitError: "",
       submitSuccess: "",
+      invoiceFile: null,
+      invoiceError: "",
+      settings: {
+        currency: "USD",
+        provider: "stripe",
+        providerConfig: {},
+      },
     };
   },
   mounted() {
@@ -145,8 +163,57 @@ export default {
         this.form[key] = value;
       }
     });
+
+    this.loadSettings();
   },
   methods: {
+    async loadSettings() {
+      const response = await getSettings();
+      if (response?.error) return;
+      const data = response?.data || response || {};
+      const providerName = String(data?.providers?.provider || "").toLowerCase();
+      const provider =
+        providerName === "adyen"
+          ? "adyen"
+          : providerName === "dummy psp" || providerName === "dummy"
+          ? "dummy"
+          : "stripe";
+
+      this.settings = {
+        currency: data?.business?.defaultCurrency || "USD",
+        provider,
+        providerConfig: data?.providers || {},
+      };
+    },
+    handleInvoiceUpload(event) {
+      const file = event.target.files?.[0] || null;
+      if (!file) {
+        this.invoiceFile = null;
+        this.invoiceError = "";
+        return;
+      }
+
+      const isPdf =
+        file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+      const maxBytes = 3 * 1024 * 1024;
+
+      if (!isPdf) {
+        this.invoiceFile = null;
+        this.invoiceError = "Only PDF files are allowed.";
+        event.target.value = "";
+        return;
+      }
+
+      if (file.size > maxBytes) {
+        this.invoiceFile = null;
+        this.invoiceError = "PDF must be 3MB or smaller.";
+        event.target.value = "";
+        return;
+      }
+
+      this.invoiceFile = file;
+      this.invoiceError = "";
+    },
     async createLink() {
       this.isSubmitting = true;
       this.submitError = "";
@@ -166,12 +233,53 @@ export default {
         invoice: this.form.invoice || null,
         requireShipping: this.form.requireShipping,
         allowTips: this.form.allowTips,
+        currency: this.settings.currency,
+        provider: this.settings.provider,
+        providerConfig: this.settings.providerConfig,
       };
 
       try {
         const baseUrl = import.meta.env.VITE_API_BASE_URL || "";
-        await axios.post(`${baseUrl}/api/payment-links`, payload);
+        let response;
+        if (this.invoiceFile) {
+          const formData = new FormData();
+          formData.append("customer", JSON.stringify(payload.customer));
+          formData.append("linkName", payload.linkName);
+          formData.append("amount", payload.amount ?? "");
+          formData.append("description", payload.description);
+          formData.append("expires", payload.expires ?? "");
+          formData.append("invoice", payload.invoice ?? "");
+          formData.append("requireShipping", String(payload.requireShipping));
+          formData.append("allowTips", String(payload.allowTips));
+          formData.append("currency", payload.currency || "");
+          formData.append("provider", payload.provider || "");
+          formData.append("providerConfig", JSON.stringify(payload.providerConfig || {}));
+          formData.append("invoiceFile", this.invoiceFile);
+
+          response = await axios.post(`${baseUrl}/api/payment-links`, formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+        } else {
+          response = await axios.post(`${baseUrl}/api/payment-links`, payload);
+        }
+        const created = response?.data || {};
+        const createdId = created.id || created._id || created.linkId || "";
+        const createdUrl =
+          created.quicklinkUrl || created.linkUrl || created.url || created.paymentLinkUrl || "";
+
         this.submitSuccess = "Payment link created successfully.";
+        this.$router.push({
+          name: "LinkCreated",
+          query: {
+            id: createdId ? String(createdId) : "",
+            linkName: this.form.linkName || "",
+            amount: this.form.amount ? String(this.form.amount) : "",
+            customer: this.form.customerName || "",
+            linkUrl: createdUrl ? String(createdUrl) : "",
+            quicklinkUrl: created.quicklinkUrl ? String(created.quicklinkUrl) : "",
+            expires: this.form.expires || "",
+          },
+        });
       } catch (error) {
         const message = error?.response?.data?.message || error?.message || "Request failed";
         this.submitError = message;
@@ -228,7 +336,8 @@ export default {
 }
 
 .field input,
-.field textarea {
+.field textarea,
+.field select {
   padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid var(--input-border);
@@ -237,9 +346,15 @@ export default {
 }
 
 .field input:focus,
-.field textarea:focus {
+.field textarea:focus,
+.field select:focus {
   border-color: var(--accent-400);
   box-shadow: 0 0 0 3px var(--focus);
+}
+
+.field-error {
+  font-size: 12px;
+  color: var(--danger);
 }
 
 .input-row {

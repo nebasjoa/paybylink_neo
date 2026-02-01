@@ -71,8 +71,27 @@
           </div>
           <div>
             <div class="label">Link URL</div>
-            <div class="value link-text">{{ link.linkUrl }}</div>
+            <div class="value link-text">
+              <a
+                v-if="link.quicklinkUrl || link.linkUrl"
+                :href="link.quicklinkUrl || link.linkUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {{ link.quicklinkUrl || link.linkUrl }}
+              </a>
+              <span v-else>—</span>
+            </div>
           </div>
+        </div>
+        <div class="link-actions">
+          <button
+            class="ghost-btn"
+            :disabled="!(link.quicklinkUrl || link.linkUrl)"
+            @click="copyLink(link)"
+          >
+            Copy link
+          </button>
         </div>
       </div>
 
@@ -182,9 +201,10 @@ const statusClass = (status) => {
 };
 
 const copyLink = async (item) => {
-  if (!item?.linkUrl) return;
+  const url = item?.quicklinkUrl || item?.linkUrl;
+  if (!url) return;
   try {
-    await navigator.clipboard.writeText(item.linkUrl);
+    await navigator.clipboard.writeText(url);
   } catch (error) {
     console.error("Failed to copy link", error);
   }
@@ -282,6 +302,20 @@ const copyLink = async (item) => {
   font-size: 13px;
   color: var(--accent-700);
   word-break: break-all;
+}
+
+.link-text a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.link-text a:hover {
+  text-decoration: underline;
+}
+
+.link-actions {
+  display: flex;
+  justify-content: flex-start;
 }
 
 .activity {

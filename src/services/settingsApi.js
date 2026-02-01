@@ -21,42 +21,24 @@ const requestJson = async (path, options = {}) => {
   return response.json();
 };
 
-export const listPaymentLinks = async () => {
+export const getSettings = async () => {
   try {
-    return await requestJson("/api/payment-links");
+    return await requestJson("/api/settings");
   } catch (error) {
     return { error: toErrorMessage(error) };
   }
 };
 
-export const getPaymentLink = async (id) => {
-  if (!id) return { error: "Missing payment link id" };
-  try {
-    return await requestJson(`/api/payment-links/${id}`);
-  } catch (error) {
-    return { error: toErrorMessage(error) };
-  }
-};
-
-export const createPaymentLink = async (payload) => {
+export const saveSettings = async (payload) => {
   if (!payload) return { error: "Missing payload" };
   try {
-    return await requestJson("/api/payment-links", {
-      method: "POST",
+    return await requestJson("/api/settings", {
+      method: "PUT",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
     });
-  } catch (error) {
-    return { error: toErrorMessage(error) };
-  }
-};
-
-export const getPublicPaymentLink = async (slug) => {
-  if (!slug) return { error: "Missing payment link slug" };
-  try {
-    return await requestJson(`/api/public/links/${slug}`);
   } catch (error) {
     return { error: toErrorMessage(error) };
   }
