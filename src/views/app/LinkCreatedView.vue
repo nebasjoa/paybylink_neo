@@ -49,18 +49,18 @@
           <div class="share-row">
             <span class="label">Link URL</span>
             <a
-              v-if="quicklinkUrl || linkUrl"
+              v-if="shareUrl"
               class="link-text"
-              :href="quicklinkUrl || linkUrl"
+              :href="shareUrl"
               target="_blank"
               rel="noopener noreferrer"
             >
-              {{ quicklinkUrl || linkUrl }}
+              {{ shareUrl }}
             </a>
             <span v-else class="link-text">We will email you the link shortly.</span>
           </div>
           <div class="actions">
-            <button class="primary-btn" :disabled="!linkUrl" @click="copyLink">
+            <button class="primary-btn" :disabled="!shareUrl" @click="copyLink">
               Copy link
             </button>
             <RouterLink class="ghost-btn" :to="detailsTarget">
@@ -88,6 +88,12 @@ const expires = computed(() => String(route.query.expires || ""));
 const linkUrl = computed(() => String(route.query.linkUrl || ""));
 const quicklinkUrl = computed(() => String(route.query.quicklinkUrl || ""));
 const linkId = computed(() => String(route.query.id || ""));
+const shareUrl = computed(() => {
+  if (linkId.value) {
+    return `${window.location.origin}/link/${linkId.value}`;
+  }
+  return quicklinkUrl.value || linkUrl.value;
+});
 
 const formattedAmount = computed(() => {
   if (!amount.value) return "—";
@@ -106,7 +112,7 @@ const detailsTarget = computed(() => {
 const detailsLabel = computed(() => (linkId.value ? "View details" : "Back to links"));
 
 const copyLink = async () => {
-  const url = quicklinkUrl.value || linkUrl.value;
+  const url = shareUrl.value;
   if (!url) return;
   try {
     await navigator.clipboard.writeText(url);

@@ -356,6 +356,12 @@ onMounted(loadSettings);
   border: 1px solid var(--input-border);
   background: var(--input-bg);
   font-size: 14px;
+  color: var(--text);
+}
+
+.field select option {
+  color: var(--text);
+  background: var(--surface);
 }
 
 .field input:focus,

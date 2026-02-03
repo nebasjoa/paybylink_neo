@@ -32,15 +32,10 @@
             <span class="value">{{ providerLabel }}</span>
           </div>
         </div>
-        <div class="actions">
-          <button class="primary-btn" :disabled="!redirectUrl" @click="goToPayment">
-            Continue to payment
-          </button>
-          <button class="ghost-btn" :disabled="!redirectUrl" @click="copyRedirect">
-            Copy payment link
-          </button>
+        <div class="redirecting">
+          <span class="spinner" aria-hidden="true"></span>
+          <span>Redirecting you to payment...</span>
         </div>
-        <p v-if="copyState" class="form-message success">{{ copyState }}</p>
       </div>
     </div>
   </section>
@@ -49,7 +44,7 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
-import { getPublicPaymentLink } from "@/services/paymentLinksApi";
+import { getPublicPaymentLink, markPaymentLinkPending } from "@/services/paymentLinksApi";
 
 const route = useRoute();
 const loading = ref(true);
@@ -79,7 +74,16 @@ const providerLabel = computed(() => {
 
 const applyResponse = (data) => {
   const safe = data || {};
-  redirectUrl.value = safe.redirectUrl || safe.hppUrl || safe.url || "";
+  redirectUrl.value =
+    safe.redirectUrl ||
+    safe.hppUrl ||
+    safe.url ||
+    safe.checkoutUrl ||
+    safe.paymentUrl ||
+    safe.paymentLinkUrl ||
+    safe.linkUrl ||
+    safe.quicklinkUrl ||
+    "";
   provider.value = safe.provider || safe.psp || "";
   amount.value = Number(safe.amount || 0);
   brandName.value = safe.merchantName || safe.brandName || safe.merchant?.name || "Quicklink";
@@ -90,19 +94,6 @@ const applyResponse = (data) => {
 const goToPayment = () => {
   if (!redirectUrl.value) return;
   window.location.href = redirectUrl.value;
-};
-
-const copyRedirect = async () => {
-  if (!redirectUrl.value) return;
-  try {
-    await navigator.clipboard.writeText(redirectUrl.value);
-    copyState.value = "Payment link copied to clipboard.";
-    window.setTimeout(() => {
-      copyState.value = "";
-    }, 2500);
-  } catch (err) {
-    console.error("Failed to copy payment link", err);
-  }
 };
 
 onMounted(async () => {
@@ -120,13 +111,21 @@ onMounted(async () => {
     return;
   }
 
-  applyResponse(response?.data || response);
+  const data = response?.data || response;
+  applyResponse(data);
   loading.value = false;
+
+  const linkId = data?.id || data?.linkId || data?._id || data?.link_id;
+  if (linkId) {
+    await markPaymentLinkPending(linkId);
+  }
 
   if (redirectUrl.value) {
     window.setTimeout(() => {
       goToPayment();
     }, 1500);
+  } else {
+    error.value = "Payment link is missing a redirect URL.";
   }
 });
 </script>
@@ -215,48 +214,27 @@ onMounted(async () => {
   font-weight: 600;
 }
 
-.actions {
+.redirecting {
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.primary-btn {
-  background: var(--accent-600);
-  color: #fff;
-  border: none;
-  padding: 10px 16px;
-  border-radius: 999px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.ghost-btn {
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  padding: 10px 16px;
-  border-radius: 999px;
-  cursor: pointer;
-  text-decoration: none;
-  display: inline-flex;
   align-items: center;
-  justify-content: center;
-}
-
-.primary-btn:disabled,
-.ghost-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.form-message {
-  margin: 0;
+  gap: 10px;
   font-size: 13px;
+  color: var(--muted);
 }
 
-.form-message.success {
-  color: var(--success);
+.spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent-500);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 640px) {

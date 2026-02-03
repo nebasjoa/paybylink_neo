@@ -13,6 +13,13 @@
       <div class="actions" v-if="link">
         <button class="ghost-btn" @click="copyLink(link)">Copy link</button>
         <button class="primary-btn" @click="showEditModal = true">Edit link</button>
+        <button
+          v-if="link.status !== 'cancelled'"
+          class="ghost-btn danger"
+          @click="openDeactivateModal(link)"
+        >
+          Deactivate
+        </button>
       </div>
     </div>
 
@@ -34,7 +41,7 @@
       <div class="panel">
         <div class="panel-header">
           <h2>Summary</h2>
-          <span class="pill" :class="statusClass(link.status)">{{ link.statusLabel || link.status || "-" }}</span>
+          <span class="pill" :class="statusClass(link.status)">{{ formatStatus(link) }}</span>
         </div>
         <div class="summary">
           <div>
@@ -69,6 +76,10 @@
               </a>
               <span v-else>-</span>
             </div>
+          </div>
+          <div>
+            <div class="label">Status</div>
+            <div class="value">{{ formatStatus(link) }}</div>
           </div>
           <div>
             <div class="label">Provider</div>
@@ -174,19 +185,39 @@
         </div>
       </div>
     </div>
+
+    <div v-if="showDeactivateModal" class="modal-backdrop" @click.self="closeDeactivateModal">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>Deactivate link</h2>
+          <button class="icon-btn" @click="closeDeactivateModal" aria-label="Close">
+            <span class="close-icon"></span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p>Deactivate this payment link? It will be marked as cancelled.</p>
+        </div>
+        <div class="modal-footer">
+          <button class="ghost-btn" @click="closeDeactivateModal">Cancel</button>
+          <button class="primary-btn" @click="deactivateLink(pendingDeactivate)">Deactivate</button>
+        </div>
+      </div>
+    </div>
   </section>
 </template>
 
 <script setup>
 import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
-import { getPaymentLink } from "@/services/paymentLinksApi";
+import { cancelPaymentLink, getPaymentLink } from "@/services/paymentLinksApi";
 
 const route = useRoute();
 const link = ref(null);
 const loading = ref(true);
 const error = ref("");
 const showEditModal = ref(false);
+const showDeactivateModal = ref(false);
+const pendingDeactivate = ref(null);
 
 const loadLink = async (id) => {
   loading.value = true;
@@ -210,7 +241,20 @@ watch(
 const statusClass = (status) => {
   if (status === "active") return "success";
   if (status === "warning") return "warning";
+  if (status === "cancelled") return "danger";
   return "muted-pill";
+};
+
+const formatStatus = (item) => {
+  if (item?.statusLabel) return item.statusLabel;
+  const status = item?.status || item?.link_status || item?.linkStatus || item?.state || "";
+  if (status === "cancelled") return "Cancelled";
+  if (status === "pending") return "Pending";
+  if (status === "paid") return "Paid";
+  if (status === "warning") return "Expires soon";
+  if (status === "active") return "Active";
+  if (status === "draft") return "Draft";
+  return status || "-";
 };
 
 const formatDate = (value) => {
@@ -256,6 +300,29 @@ const copyLink = async (item) => {
   } catch (error) {
     console.error("Failed to copy link", error);
   }
+};
+
+const openDeactivateModal = (item) => {
+  if (!item) return;
+  pendingDeactivate.value = item;
+  showDeactivateModal.value = true;
+};
+
+const closeDeactivateModal = () => {
+  showDeactivateModal.value = false;
+  pendingDeactivate.value = null;
+};
+
+const deactivateLink = async (item) => {
+  if (!item?.id) return;
+  const response = await cancelPaymentLink(item.id);
+  if (response?.error) {
+    error.value = response.error;
+    return;
+  }
+  item.status = "cancelled";
+  item.statusLabel = "Cancelled";
+  closeDeactivateModal();
 };
 </script>
 
@@ -419,6 +486,11 @@ const copyLink = async (item) => {
   color: var(--warning-text);
 }
 
+.pill.danger {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+}
+
 .pill.muted-pill {
   background: var(--surface-2);
   color: var(--muted);
@@ -431,6 +503,15 @@ const copyLink = async (item) => {
   padding: 8px 12px;
   border-radius: 10px;
   cursor: pointer;
+}
+
+.ghost-btn.danger {
+  border-color: rgba(239, 68, 68, 0.3);
+  color: var(--danger-text);
+}
+
+.ghost-btn.danger:hover {
+  border-color: rgba(239, 68, 68, 0.6);
 }
 
 .primary-btn {

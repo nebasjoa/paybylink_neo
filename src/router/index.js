@@ -76,6 +76,11 @@ const routes = [
     name: "PaymentCancel",
     component: () => import("@/views/public/PaymentCancelView.vue"),
   },
+  {
+    path: "/payment-success",
+    name: "PaymentSuccess",
+    component: () => import("@/views/public/PaymentSuccessView.vue"),
+  },
 
   { path: "/:pathMatch(.*)*", name: "NotFound", component: () => import("@/views/NotFoundView.vue") },
 ];

@@ -21,7 +21,13 @@
 
           <label class="field">
             <span>Customer email</span>
-            <input v-model="form.customerEmail" type="email" placeholder="alex@studio.io" />
+            <input
+              v-model="form.customerEmail"
+              type="email"
+              placeholder="alex@studio.io"
+              required
+            />
+            <span v-if="fieldErrors.customerEmail" class="field-error">{{ fieldErrors.customerEmail }}</span>
           </label>
 
           <div class="two-col">
@@ -43,9 +49,10 @@
           <label class="field">
             <span>Amount</span>
             <div class="input-row">
-              <span class="pill">USD</span>
-              <input v-model="form.amount" type="number" placeholder="2500" />
+              <span class="pill">{{ settings.currency || "USD" }}</span>
+              <input v-model="form.amount" type="number" placeholder="2500" required min="0.01" step="0.01" />
             </div>
+            <span v-if="fieldErrors.amount" class="field-error">{{ fieldErrors.amount }}</span>
           </label>
 
           <label class="field">
@@ -67,6 +74,7 @@
           <label class="field">
             <span>Attach PDF invoice (optional)</span>
             <input
+              class="file-input"
               type="file"
               accept=".pdf,application/pdf"
               @change="handleInvoiceUpload"
@@ -79,11 +87,6 @@
               <input v-model="form.requireShipping" type="checkbox" />
               <span class="switch-ui"></span>
               Require shipping address
-            </label>
-            <label class="switch">
-              <input v-model="form.allowTips" type="checkbox" />
-              <span class="switch-ui"></span>
-              Allow tips
             </label>
           </div>
         </form>
@@ -135,13 +138,16 @@ export default {
         expires: "",
         invoice: "",
         requireShipping: true,
-        allowTips: false,
       },
       isSubmitting: false,
       submitError: "",
       submitSuccess: "",
       invoiceFile: null,
       invoiceError: "",
+      fieldErrors: {
+        customerEmail: "",
+        amount: "",
+      },
       settings: {
         currency: "USD",
         provider: "stripe",
@@ -214,7 +220,29 @@ export default {
       this.invoiceFile = file;
       this.invoiceError = "";
     },
+    validateForm() {
+      this.fieldErrors.customerEmail = "";
+      this.fieldErrors.amount = "";
+
+      const email = String(this.form.customerEmail || "").trim();
+      const amountValue = Number(this.form.amount);
+
+      if (!email) {
+        this.fieldErrors.customerEmail = "Customer email is required.";
+      }
+
+      if (!this.form.amount || Number.isNaN(amountValue) || amountValue <= 0) {
+        this.fieldErrors.amount = "Amount is required.";
+      }
+
+      return !this.fieldErrors.customerEmail && !this.fieldErrors.amount;
+    },
     async createLink() {
+      if (!this.validateForm()) {
+        this.submitError = "Please fix the highlighted fields.";
+        return;
+      }
+
       this.isSubmitting = true;
       this.submitError = "";
       this.submitSuccess = "";
@@ -229,10 +257,10 @@ export default {
         linkName: this.form.linkName,
         amount: this.form.amount ? Number(this.form.amount) : null,
         description: this.form.description,
+        status: "active",
         expires: this.form.expires || null,
         invoice: this.form.invoice || null,
         requireShipping: this.form.requireShipping,
-        allowTips: this.form.allowTips,
         currency: this.settings.currency,
         provider: this.settings.provider,
         providerConfig: this.settings.providerConfig,
@@ -247,10 +275,10 @@ export default {
           formData.append("linkName", payload.linkName);
           formData.append("amount", payload.amount ?? "");
           formData.append("description", payload.description);
+          formData.append("status", payload.status || "active");
           formData.append("expires", payload.expires ?? "");
           formData.append("invoice", payload.invoice ?? "");
           formData.append("requireShipping", String(payload.requireShipping));
-          formData.append("allowTips", String(payload.allowTips));
           formData.append("currency", payload.currency || "");
           formData.append("provider", payload.provider || "");
           formData.append("providerConfig", JSON.stringify(payload.providerConfig || {}));
@@ -343,6 +371,27 @@ export default {
   border: 1px solid var(--input-border);
   background: var(--input-bg);
   font-size: 14px;
+}
+
+.file-input {
+  padding: 8px;
+  cursor: pointer;
+  color: var(--text-2);
+}
+
+.file-input::file-selector-button {
+  margin-right: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.file-input::file-selector-button:hover {
+  border-color: var(--border-2);
 }
 
 .field input:focus,

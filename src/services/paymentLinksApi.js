@@ -53,10 +53,36 @@ export const createPaymentLink = async (payload) => {
   }
 };
 
+export const cancelPaymentLink = async (id) => {
+  if (!id) return { error: "Missing payment link id" };
+  try {
+    return await requestJson(`/api/payment-links/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ status: "cancelled" }),
+    });
+  } catch (error) {
+    return { error: toErrorMessage(error) };
+  }
+};
+
 export const getPublicPaymentLink = async (slug) => {
   if (!slug) return { error: "Missing payment link slug" };
   try {
     return await requestJson(`/api/public/links/${slug}`);
+  } catch (error) {
+    return { error: toErrorMessage(error) };
+  }
+};
+
+export const markPaymentLinkPending = async (linkId) => {
+  if (!linkId) return { error: "Missing payment link id" };
+  try {
+    return await requestJson(`/api/payment-links/${linkId}/pending`, {
+      method: "POST",
+    });
   } catch (error) {
     return { error: toErrorMessage(error) };
   }

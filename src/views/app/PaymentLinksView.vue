@@ -7,7 +7,6 @@
       </div>
       <div class="actions">
         <button class="ghost-btn">Export</button>
-        <button class="primary-btn" @click="showNewModal = true">New link</button>
       </div>
     </div>
 
@@ -17,10 +16,11 @@
         <input type="search" placeholder="Search by name, customer, or status" />
       </label>
       <div class="chips">
-        <button class="chip active">All</button>
-        <button class="chip">Active</button>
-        <button class="chip">Expired</button>
-        <button class="chip">Drafts</button>
+        <button class="chip" :class="{ active: activeFilter === 'all' }" @click="setFilter('all')">All</button>
+        <button class="chip" :class="{ active: activeFilter === 'active' }" @click="setFilter('active')">Active</button>
+        <button class="chip" :class="{ active: activeFilter === 'pending' }" @click="setFilter('pending')">Pending</button>
+        <button class="chip" :class="{ active: activeFilter === 'cancelled' }" @click="setFilter('cancelled')">Cancelled</button>
+        <button class="chip" :class="{ active: activeFilter === 'paid' }" @click="setFilter('paid')">Paid</button>
       </div>
     </div>
 
@@ -29,6 +29,7 @@
         <span>Name</span>
         <span>Amount</span>
         <span>Status</span>
+        <span>Expires</span>
         <span>Created</span>
         <span>Actions</span>
       </div>
@@ -41,23 +42,30 @@
         <div class="cell muted">{{ error }}</div>
       </div>
 
-      <div v-else-if="!links.length" class="row empty-row">
+      <div v-else-if="!filteredLinks.length" class="row empty-row">
         <div class="cell muted">No payment links yet.</div>
       </div>
 
-      <div v-else v-for="link in links" :key="link.id" class="row">
+      <div v-else v-for="link in filteredLinks" :key="link.id" class="row">
         <div class="cell">
-          <div class="title">{{ link.name }}</div>
+          <div class="title">{{ link.linkName || link.name }}</div>
           <div class="sub">{{ link.customer }}</div>
         </div>
-        <div class="cell">{{ link.amount }}</div>
+        <div class="cell">{{ formatAmount(link) }}</div>
         <div class="cell">
-          <span class="pill" :class="statusClass(link.status)">{{ link.statusLabel }}</span>
+          <span class="pill" :class="statusClass(link.status)">{{ formatStatus(link) }}</span>
         </div>
-        <div class="cell">{{ link.created }}</div>
+        <div class="cell">{{ formatDate(link.expires || link.expiresAt || link.expirationDate) }}</div>
+        <div class="cell">{{ formatDate(link.created || link.createdAt || link.created_at) }}</div>
         <div class="cell actions">
-          <button class="ghost-btn small" @click="copyLink(link)">Copy link</button>
           <button class="ghost-btn small" @click="goToDetails(link.id)">View</button>
+          <button
+            v-if="link.status !== 'cancelled'"
+            class="ghost-btn small danger"
+            @click="openDeactivateModal(link)"
+          >
+            Deactivate
+          </button>
         </div>
       </div>
     </div>
@@ -94,19 +102,50 @@
         </div>
       </div>
     </div>
+
+    <div v-if="showDeactivateModal" class="modal-backdrop" @click.self="closeDeactivateModal">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>Deactivate link</h2>
+          <button class="icon-btn" @click="closeDeactivateModal" aria-label="Close">
+            <span class="close-icon"></span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p>Deactivate this payment link? It will be marked as cancelled.</p>
+        </div>
+        <div class="modal-footer">
+          <button class="ghost-btn" @click="closeDeactivateModal">Cancel</button>
+          <button class="primary-btn" @click="deactivateLink(pendingDeactivate)">Deactivate</button>
+        </div>
+      </div>
+    </div>
   </section>
 </template>
 
 <script setup>
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import { listPaymentLinks } from "@/services/paymentLinksApi";
+import { cancelPaymentLink, listPaymentLinks } from "@/services/paymentLinksApi";
 
 const router = useRouter();
 const links = ref([]);
 const loading = ref(true);
 const error = ref("");
 const showNewModal = ref(false);
+const showDeactivateModal = ref(false);
+const pendingDeactivate = ref(null);
+const activeFilter = ref("all");
+
+const normalizeLink = (link) => {
+  const status = link?.status || link?.state || link?.linkStatus || link?.link_status || "";
+  const statusLabel = link?.statusLabel || link?.status_text || "";
+  return {
+    ...link,
+    status,
+    statusLabel,
+  };
+};
 
 const loadLinks = async () => {
   loading.value = true;
@@ -116,30 +155,85 @@ const loadLinks = async () => {
     error.value = response.error;
     links.value = [];
   } else {
-    links.value = Array.isArray(response) ? response : response?.data || [];
+    const rawLinks = Array.isArray(response) ? response : response?.data || [];
+    links.value = rawLinks.map(normalizeLink);
   }
   loading.value = false;
 };
 
 onMounted(loadLinks);
 
+const filteredLinks = computed(() => {
+  if (activeFilter.value === "all") return links.value;
+  return links.value.filter((link) => {
+    const status = String(link.status || "").toLowerCase();
+    return status === activeFilter.value;
+  });
+});
+
 const statusClass = (status) => {
   if (status === "active") return "success";
   if (status === "warning") return "warning";
+  if (status === "cancelled") return "danger";
+  if (status === "paid") return "success";
+  if (status === "pending") return "warning";
   return "muted-pill";
 };
 
-const copyLink = async (link) => {
-  if (!link?.linkUrl) return;
-  try {
-    await navigator.clipboard.writeText(link.linkUrl);
-  } catch (error) {
-    console.error("Failed to copy link", error);
-  }
+const formatStatus = (link) => {
+  if (link?.statusLabel) return link.statusLabel;
+  if (link?.status === "cancelled") return "Cancelled";
+  if (link?.status === "pending") return "Pending";
+  if (link?.status === "paid") return "Paid";
+  if (link?.status === "warning") return "Expires soon";
+  if (link?.status === "active") return "Active";
+  if (link?.status === "draft") return "Draft";
+  return link?.status || "-";
+};
+
+const formatAmount = (link) => {
+  const amount = Number(link?.amount ?? 0);
+  if (!amount) return "-";
+  const currency = link?.currency || "USD";
+  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount);
+};
+
+const formatDate = (value) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(date);
 };
 
 const goToDetails = (id) => {
   router.push({ name: "PaymentLinkDetails", params: { id } });
+};
+
+const openDeactivateModal = (link) => {
+  if (!link) return;
+  pendingDeactivate.value = link;
+  showDeactivateModal.value = true;
+};
+
+const setFilter = (value) => {
+  activeFilter.value = value;
+};
+
+const closeDeactivateModal = () => {
+  showDeactivateModal.value = false;
+  pendingDeactivate.value = null;
+};
+
+const deactivateLink = async (link) => {
+  if (!link?.id) return;
+  const response = await cancelPaymentLink(link.id);
+  if (response?.error) {
+    error.value = response.error;
+    return;
+  }
+  link.status = "cancelled";
+  link.statusLabel = "Cancelled";
+  closeDeactivateModal();
 };
 </script>
 
@@ -215,7 +309,7 @@ const goToDetails = (id) => {
 
 .row {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1.2fr;
   gap: 12px;
   padding: 14px 18px;
   align-items: center;
@@ -262,6 +356,11 @@ const goToDetails = (id) => {
   color: var(--warning-text);
 }
 
+.pill.danger {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+}
+
 .pill.muted-pill {
   background: var(--surface-2);
   color: var(--muted);
@@ -279,6 +378,15 @@ const goToDetails = (id) => {
 .ghost-btn.small {
   padding: 6px 10px;
   font-size: 12px;
+}
+
+.ghost-btn.danger {
+  border-color: rgba(239, 68, 68, 0.3);
+  color: var(--danger-text);
+}
+
+.ghost-btn.danger:hover {
+  border-color: rgba(239, 68, 68, 0.6);
 }
 
 .primary-btn {
@@ -406,8 +514,10 @@ const goToDetails = (id) => {
 
   .row span:nth-child(4),
   .row span:nth-child(5),
+  .row span:nth-child(6),
   .row .cell:nth-child(4),
-  .row .cell:nth-child(5) {
+  .row .cell:nth-child(5),
+  .row .cell:nth-child(6) {
     display: none;
   }
 }
