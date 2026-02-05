@@ -142,12 +142,29 @@ const loadDashboard = async () => {
 
 onMounted(loadDashboard);
 
-const kpis = computed(() => dashboard.value?.kpis || {});
+const kpis = computed(() => {
+  const stats = dashboard.value?.stats || {};
+  return {
+    totalVolume: stats.amountTotal,
+    totalVolumeDelta: dashboard.value?.kpis?.totalVolumeDelta,
+    totalVolumeDeltaClass: dashboard.value?.kpis?.totalVolumeDeltaClass || "muted",
+    activeLinks: stats.linksActive,
+    activeLinksNote: stats.linksPending ? `${stats.linksPending} pending` : "",
+    conversionRate: dashboard.value?.kpis?.conversionRate,
+    conversionRateDelta: dashboard.value?.kpis?.conversionRateDelta,
+    pendingPayouts: dashboard.value?.kpis?.pendingPayouts,
+    nextPayoutDate: dashboard.value?.kpis?.nextPayoutDate,
+  };
+});
 const recentActivity = computed(() =>
   Array.isArray(dashboard.value?.recentActivity) ? dashboard.value.recentActivity : []
 );
 const topLinks = computed(() =>
-  Array.isArray(dashboard.value?.topLinks) ? dashboard.value.topLinks : []
+  Array.isArray(dashboard.value?.topLinks)
+    ? dashboard.value.topLinks
+    : Array.isArray(dashboard.value?.recentLinks)
+    ? dashboard.value.recentLinks
+    : []
 );
 const payouts = computed(() =>
   Array.isArray(dashboard.value?.payouts) ? dashboard.value.payouts : []
