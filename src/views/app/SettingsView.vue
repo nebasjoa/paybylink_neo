@@ -16,15 +16,15 @@
         <div class="form">
           <label class="field">
             <span>Full name</span>
-            <input v-model="form.profile.fullName" type="text" placeholder="Nebojsa Stojanovic" />
+            <input v-model="form.profile.fullName" type="text" placeholder="Full name" />
           </label>
           <label class="field">
             <span>Email</span>
-            <input v-model="form.profile.email" type="email" placeholder="nebojsa@paybylink.com" />
+            <input v-model="form.profile.email" type="email" placeholder="Email address" />
           </label>
           <label class="field">
             <span>Role</span>
-            <input v-model="form.profile.role" type="text" placeholder="Owner" />
+            <input v-model="form.profile.role" type="text" placeholder="Role" />
           </label>
         </div>
       </div>
@@ -34,11 +34,11 @@
         <div class="form">
           <label class="field">
             <span>Business name</span>
-            <input v-model="form.business.name" type="text" placeholder="PayByLink LLC" />
+            <input v-model="form.business.name" type="text" placeholder="Business name" />
           </label>
           <label class="field">
             <span>Support email</span>
-            <input v-model="form.business.supportEmail" type="email" placeholder="support@paybylink.com" />
+            <input v-model="form.business.supportEmail" type="email" placeholder="Support email" />
           </label>
           <label class="field">
             <span>Default currency</span>
@@ -56,7 +56,7 @@
         <div class="form">
           <label class="field">
             <span>Bank account</span>
-            <input v-model="form.payouts.bankAccount" type="text" placeholder="**** 4921" />
+            <input v-model="form.payouts.bankAccount" type="text" placeholder="Bank account" />
           </label>
           <label class="field">
             <span>Payout schedule</span>
@@ -71,7 +71,7 @@
             <input
               v-model="form.payouts.statementDescriptor"
               type="text"
-              placeholder="PAYBYLINK*STUDIO"
+              placeholder="Statement descriptor"
             />
           </label>
         </div>
@@ -86,23 +86,23 @@
           <label class="field">
             <span>Provider</span>
             <select v-model="form.providers.provider">
-              <option>Stripe</option>
-              <option>Adyen</option>
-              <option>PayPal</option>
-              <option>Dummy PSP</option>
+              <option value="">Select provider</option>
+              <option value="Stripe">Stripe</option>
+              <option value="Adyen">Adyen</option>
+              <option value="PayPal">PayPal</option>
             </select>
           </label>
           <label class="field">
             <span>Merchant account ID</span>
-            <input v-model="form.providers.merchantAccountId" type="text" placeholder="acct_1234..." />
+            <input v-model="form.providers.merchantAccountId" type="text" placeholder="Merchant account ID" />
           </label>
           <label class="field">
             <span>API key</span>
-            <input v-model="form.providers.apiKey" type="password" placeholder="sk_live_********" />
+            <input v-model="form.providers.apiKey" type="password" placeholder="API key" />
           </label>
           <label v-if="isDev" class="field">
             <span>Display ID (dev only)</span>
-            <input v-model="form.providers.displayId" type="text" placeholder="test-display-id" />
+            <input v-model="form.providers.displayId" type="text" placeholder="Display ID" />
           </label>
           <button class="ghost-btn inline-btn" type="button">Add provider</button>
         </div>
@@ -139,29 +139,16 @@
         <p class="panel-subtitle">
           Control the messaging for new links, reminders, and receipts.
         </p>
-        <div class="template-list">
-          <div class="template-item">
+        <div v-if="templates.length" class="template-list">
+          <div v-for="template in templates" :key="template.id || template.key" class="template-item">
             <div>
-              <h3>Payment link created</h3>
-              <p class="muted">Sent when a new link is generated.</p>
-            </div>
-            <button class="ghost-btn inline-btn" type="button">Edit</button>
-          </div>
-          <div class="template-item">
-            <div>
-              <h3>Payment reminder</h3>
-              <p class="muted">Used for scheduled nudges.</p>
-            </div>
-            <button class="ghost-btn inline-btn" type="button">Edit</button>
-          </div>
-          <div class="template-item">
-            <div>
-              <h3>Receipt confirmation</h3>
-              <p class="muted">Sent after successful payment.</p>
+              <h3>{{ template.title || template.name || "Template" }}</h3>
+              <p class="muted">{{ template.description || "-" }}</p>
             </div>
             <button class="ghost-btn inline-btn" type="button">Edit</button>
           </div>
         </div>
+        <p v-else class="muted">No templates configured yet.</p>
       </div>
 
       <div class="panel">
@@ -199,6 +186,7 @@ const saving = ref(false);
 const error = ref("");
 const success = ref("");
 const isDev = import.meta.env.VITE_ENV === "development";
+const templates = ref([]);
 
 const defaultSettings = () => ({
   profile: {
@@ -217,7 +205,7 @@ const defaultSettings = () => ({
     statementDescriptor: "",
   },
   providers: {
-    provider: "Stripe",
+    provider: "",
     merchantAccountId: "",
     apiKey: "",
     displayId: "",
@@ -249,7 +237,7 @@ const applySettings = (data) => {
   form.payouts.schedule = safe.payouts?.schedule ?? "Weekly";
   form.payouts.statementDescriptor = safe.payouts?.statementDescriptor ?? "";
 
-  form.providers.provider = safe.providers?.provider ?? "Stripe";
+  form.providers.provider = safe.providers?.provider ?? "";
   form.providers.merchantAccountId = safe.providers?.merchantAccountId ?? "";
   form.providers.apiKey = safe.providers?.apiKey ?? "";
   form.providers.displayId = safe.providers?.displayId ?? "";
@@ -260,6 +248,12 @@ const applySettings = (data) => {
   form.notifications.payoutsCompleted = safe.notifications?.payoutsCompleted ?? true;
   form.notifications.newPaymentReceived = safe.notifications?.newPaymentReceived ?? true;
   form.notifications.weeklySummary = safe.notifications?.weeklySummary ?? false;
+
+  templates.value = Array.isArray(safe.templates)
+    ? safe.templates
+    : Array.isArray(safe.emailTemplates)
+    ? safe.emailTemplates
+    : [];
 };
 
 const loadSettings = async () => {

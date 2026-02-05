@@ -6,14 +6,15 @@
         <p class="muted">Create, share, and track your links in one place.</p>
       </div>
       <div class="actions">
-        <button class="ghost-btn">Export</button>
+        <button class="ghost-btn" :disabled="!links.length">Export</button>
+        <button class="primary-btn" @click="goToCreate">Create link</button>
       </div>
     </div>
 
     <div class="filters">
       <label class="search">
         <span class="sr-only">Search</span>
-        <input type="search" placeholder="Search by name, customer, or status" />
+        <input v-model="search" type="search" placeholder="Search payment links" />
       </label>
       <div class="chips">
         <button class="chip" :class="{ active: activeFilter === 'all' }" @click="setFilter('all')">All</button>
@@ -70,39 +71,6 @@
       </div>
     </div>
 
-    <div v-if="showNewModal" class="modal-backdrop" @click.self="showNewModal = false">
-      <div class="modal">
-        <div class="modal-header">
-          <h2>Create payment link</h2>
-          <button class="icon-btn" @click="showNewModal = false" aria-label="Close">
-            <span class="close-icon"></span>
-          </button>
-        </div>
-        <div class="modal-body">
-          <div class="field">
-            <label>Name</label>
-            <input type="text" placeholder="e.g. Website redesign deposit" />
-          </div>
-          <div class="field">
-            <label>Customer</label>
-            <input type="text" placeholder="e.g. Acme Studio" />
-          </div>
-          <div class="field">
-            <label>Amount</label>
-            <input type="text" placeholder="$0.00" />
-          </div>
-          <div class="field">
-            <label>Expires</label>
-            <input type="date" />
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="ghost-btn" @click="showNewModal = false">Cancel</button>
-          <button class="primary-btn">Create link</button>
-        </div>
-      </div>
-    </div>
-
     <div v-if="showDeactivateModal" class="modal-backdrop" @click.self="closeDeactivateModal">
       <div class="modal">
         <div class="modal-header">
@@ -132,10 +100,10 @@ const router = useRouter();
 const links = ref([]);
 const loading = ref(true);
 const error = ref("");
-const showNewModal = ref(false);
 const showDeactivateModal = ref(false);
 const pendingDeactivate = ref(null);
 const activeFilter = ref("all");
+const search = ref("");
 
 const normalizeLink = (link) => {
   const status = link?.status || link?.state || link?.linkStatus || link?.link_status || "";
@@ -164,10 +132,27 @@ const loadLinks = async () => {
 onMounted(loadLinks);
 
 const filteredLinks = computed(() => {
-  if (activeFilter.value === "all") return links.value;
-  return links.value.filter((link) => {
-    const status = String(link.status || "").toLowerCase();
-    return status === activeFilter.value;
+  let filtered = links.value;
+  if (activeFilter.value !== "all") {
+    filtered = filtered.filter((link) => {
+      const status = String(link.status || "").toLowerCase();
+      return status === activeFilter.value;
+    });
+  }
+  const query = search.value.trim().toLowerCase();
+  if (!query) return filtered;
+  return filtered.filter((link) => {
+    return [
+      link.linkName,
+      link.name,
+      link.customer,
+      link.customerName,
+      link.customerEmail,
+      link.status,
+      link.statusLabel,
+    ]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(query));
   });
 });
 
@@ -207,6 +192,10 @@ const formatDate = (value) => {
 
 const goToDetails = (id) => {
   router.push({ name: "PaymentLinkDetails", params: { id } });
+};
+
+const goToCreate = () => {
+  router.push({ name: "CreateLink" });
 };
 
 const openDeactivateModal = (link) => {

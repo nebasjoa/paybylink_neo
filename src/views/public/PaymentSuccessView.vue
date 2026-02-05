@@ -2,8 +2,8 @@
   <section class="payment-success">
     <div class="card">
       <div class="badge">Payment successful</div>
-      <h1>Thanks — your payment went through.</h1>
-      <p class="muted">This is a dummy hosted payment page for testing.</p>
+      <h1>Thanks - your payment went through.</h1>
+      
 
       <div class="summary">
         <div>
@@ -16,7 +16,7 @@
         </div>
         <div>
           <span class="label">Test Mode</span>
-          <span class="value">{{ isTest ? "Yes" : "No" }}</span>
+          <span class="value">{{ isTest - "Yes" : "No" }}</span>
         </div>
       </div>
 

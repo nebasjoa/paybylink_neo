@@ -6,130 +6,210 @@
         <p class="muted">Your payment performance at a glance.</p>
       </div>
       <div class="actions">
-        <button class="ghost-btn">Download report</button>
-        <button class="primary-btn">Create link</button>
+        <button class="ghost-btn" :disabled="!reportUrl" @click="downloadReport">
+          Download report
+        </button>
+        <RouterLink class="primary-btn" to="/links/new">Create link</RouterLink>
       </div>
     </div>
 
-    <div class="kpi-grid">
-      <div class="kpi-card">
-        <div class="label">Total volume</div>
-        <div class="value">$48,920</div>
-        <div class="delta success">+18% this month</div>
-      </div>
-      <div class="kpi-card">
-        <div class="label">Active links</div>
-        <div class="value">24</div>
-        <div class="delta info">6 expiring soon</div>
-      </div>
-      <div class="kpi-card">
-        <div class="label">Conversion rate</div>
-        <div class="value">72%</div>
-        <div class="delta warning">-3% vs last month</div>
-      </div>
-      <div class="kpi-card">
-        <div class="label">Pending payouts</div>
-        <div class="value">$3,240</div>
-        <div class="delta">Next payout Feb 2</div>
-      </div>
+    <div v-if="loading" class="panel">
+      <p class="muted">Loading dashboard...</p>
     </div>
+    <div v-else-if="error" class="panel">
+      <p class="muted">{{ error }}</p>
+    </div>
+    <template v-else>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="label">Total volume</div>
+          <div class="value">{{ formatMoney(kpis.totalVolume, currency) }}</div>
+          <div class="delta" :class="kpis.totalVolumeDeltaClass">
+            {{ kpis.totalVolumeDelta || "-" }}
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="label">Active links</div>
+          <div class="value">{{ formatNumber(kpis.activeLinks) }}</div>
+          <div class="delta info">{{ kpis.activeLinksNote || "-" }}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="label">Conversion rate</div>
+          <div class="value">{{ formatPercent(kpis.conversionRate) }}</div>
+          <div class="delta warning">{{ kpis.conversionRateDelta || "-" }}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="label">Pending payouts</div>
+          <div class="value">{{ formatMoney(kpis.pendingPayouts, currency) }}</div>
+          <div class="delta">
+            {{ kpis.nextPayoutDate ? `Next payout ${formatDate(kpis.nextPayoutDate)}` : "-" }}
+          </div>
+        </div>
+      </div>
 
-    <div class="grid">
-      <div class="panel">
+      <div class="grid">
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Recent activity</h2>
+            <button class="ghost-btn small" :disabled="!recentActivity.length">View all</button>
+          </div>
+          <div v-if="!recentActivity.length" class="list empty">
+            <p class="muted">No recent activity yet.</p>
+          </div>
+          <div v-else class="list">
+            <div v-for="activity in recentActivity" :key="activity.id || activity.createdAt" class="list-row">
+              <div>
+                <div class="title">{{ activity.title || activity.customer || "-" }}</div>
+                <div class="sub">{{ activity.description || activity.note || "-" }}</div>
+              </div>
+              <div class="amount" :class="amountClass(activity.amount)">
+                {{ formatMoney(activity.amount, currency, true) }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Top links</h2>
+            <button class="ghost-btn small" :disabled="!topLinks.length">Manage</button>
+          </div>
+          <div v-if="!topLinks.length" class="list empty">
+            <p class="muted">No links to show yet.</p>
+          </div>
+          <div v-else class="list">
+            <div v-for="link in topLinks" :key="link.id || link.linkId" class="list-row">
+              <div>
+                <div class="title">{{ link.title || link.name || link.linkName || "-" }}</div>
+                <div class="sub">{{ link.subtitle || link.note || "-" }}</div>
+              </div>
+              <div class="amount">{{ formatMoney(link.amount, currency) }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel wide">
         <div class="panel-header">
-          <h2>Recent activity</h2>
-          <button class="ghost-btn small">View all</button>
+          <h2>Payouts</h2>
+          <button class="ghost-btn small" :disabled="!payouts.length">View schedule</button>
         </div>
-        <div class="list">
-          <div class="list-row">
-            <div>
-              <div class="title">Acme Studio</div>
-              <div class="sub">Website redesign deposit</div>
-            </div>
-            <div class="amount success-text">+$2,500</div>
+        <div class="table">
+          <div class="row header">
+            <span>Date</span>
+            <span>Amount</span>
+            <span>Status</span>
+            <span>Destination</span>
           </div>
-          <div class="list-row">
-            <div>
-              <div class="title">Northwind</div>
-              <div class="sub">Monthly retainer</div>
-            </div>
-            <div class="amount success-text">+$1,200</div>
+          <div v-if="!payouts.length" class="row empty-row">
+            <div class="cell muted">No payouts available.</div>
           </div>
-          <div class="list-row">
-            <div>
-              <div class="title">Studio 47</div>
-              <div class="sub">Brand workshop</div>
+          <div v-else v-for="payout in payouts" :key="payout.id || payout.date" class="row">
+            <div class="cell">{{ formatDate(payout.date) }}</div>
+            <div class="cell">{{ formatMoney(payout.amount, currency) }}</div>
+            <div class="cell">
+              <span class="pill" :class="statusClass(payout.status)">{{ payout.status || "-" }}</span>
             </div>
-            <div class="amount danger-text">-$800</div>
+            <div class="cell">{{ payout.destination || "-" }}</div>
           </div>
         </div>
       </div>
-
-      <div class="panel">
-        <div class="panel-header">
-          <h2>Top links</h2>
-          <button class="ghost-btn small">Manage</button>
-        </div>
-        <div class="list">
-          <div class="list-row">
-            <div>
-              <div class="title">Website redesign deposit</div>
-              <div class="sub">24 payments</div>
-            </div>
-            <div class="amount">$18,400</div>
-          </div>
-          <div class="list-row">
-            <div>
-              <div class="title">Monthly retainer</div>
-              <div class="sub">12 payments</div>
-            </div>
-            <div class="amount">$9,600</div>
-          </div>
-          <div class="list-row">
-            <div>
-              <div class="title">Brand workshop</div>
-              <div class="sub">6 payments</div>
-            </div>
-            <div class="amount">$4,800</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="panel wide">
-      <div class="panel-header">
-        <h2>Payouts</h2>
-        <button class="ghost-btn small">View schedule</button>
-      </div>
-      <div class="table">
-        <div class="row header">
-          <span>Date</span>
-          <span>Amount</span>
-          <span>Status</span>
-          <span>Destination</span>
-        </div>
-        <div class="row">
-          <div class="cell">Feb 2, 2026</div>
-          <div class="cell">$3,240.00</div>
-          <div class="cell">
-            <span class="pill warning">Processing</span>
-          </div>
-          <div class="cell">Bank •••• 4921</div>
-        </div>
-        <div class="row">
-          <div class="cell">Jan 26, 2026</div>
-          <div class="cell">$6,820.00</div>
-          <div class="cell">
-            <span class="pill success">Completed</span>
-          </div>
-          <div class="cell">Bank •••• 4921</div>
-        </div>
-      </div>
-    </div>
+    </template>
   </section>
 </template>
 
-<script setup></script>
+<script setup>
+import { computed, onMounted, ref } from "vue";
+import { RouterLink } from "vue-router";
+import { getDashboard } from "@/services/dashboardApi";
+
+const loading = ref(true);
+const error = ref("");
+const dashboard = ref(null);
+
+const loadDashboard = async () => {
+  loading.value = true;
+  error.value = "";
+  const response = await getDashboard();
+  if (response?.error) {
+    error.value = response.error;
+    dashboard.value = null;
+  } else {
+    dashboard.value = response?.data || response || null;
+  }
+  loading.value = false;
+};
+
+onMounted(loadDashboard);
+
+const kpis = computed(() => dashboard.value?.kpis || {});
+const recentActivity = computed(() =>
+  Array.isArray(dashboard.value?.recentActivity) ? dashboard.value.recentActivity : []
+);
+const topLinks = computed(() =>
+  Array.isArray(dashboard.value?.topLinks) ? dashboard.value.topLinks : []
+);
+const payouts = computed(() =>
+  Array.isArray(dashboard.value?.payouts) ? dashboard.value.payouts : []
+);
+const reportUrl = computed(() => dashboard.value?.reportUrl || "");
+const currency = computed(() => dashboard.value?.currency || "USD");
+
+const formatMoney = (value, currencyCode, showSign = false) => {
+  if (value === null || value === undefined || value === "") return "-";
+  const amount = Number(value);
+  if (Number.isNaN(amount)) return "-";
+  const formatted = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: currencyCode || "USD",
+    signDisplay: showSign ? "always" : "auto",
+  }).format(amount);
+  return formatted;
+};
+
+const formatNumber = (value) => {
+  if (value === null || value === undefined || value === "") return "-";
+  const amount = Number(value);
+  if (Number.isNaN(amount)) return "-";
+  return new Intl.NumberFormat("en-US").format(amount);
+};
+
+const formatPercent = (value) => {
+  if (value === null || value === undefined || value === "") return "-";
+  const amount = Number(value);
+  if (Number.isNaN(amount)) return "-";
+  const percent = amount > 1 ? amount : amount * 100;
+  return `${percent.toFixed(0)}%`;
+};
+
+const formatDate = (value) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(date);
+};
+
+const amountClass = (value) => {
+  if (value === null || value === undefined || value === "") return "";
+  const amount = Number(value);
+  if (Number.isNaN(amount)) return "";
+  if (amount < 0) return "danger-text";
+  if (amount > 0) return "success-text";
+  return "";
+};
+
+const statusClass = (status) => {
+  const value = String(status || "").toLowerCase();
+  if (value === "completed" || value === "paid") return "success";
+  if (value === "processing" || value === "pending") return "warning";
+  return "muted-pill";
+};
+
+const downloadReport = () => {
+  if (!reportUrl.value) return;
+  window.open(reportUrl.value, "_blank", "noopener,noreferrer");
+};
+</script>
 
 <style scoped>
 .dashboard {
@@ -228,6 +308,10 @@
   gap: 12px;
 }
 
+.list.empty {
+  padding: 8px 0;
+}
+
 .list-row {
   display: flex;
   align-items: center;
@@ -289,6 +373,14 @@
   font-weight: 600;
 }
 
+.row.empty-row {
+  grid-template-columns: 1fr;
+}
+
+.row.empty-row .cell {
+  grid-column: 1 / -1;
+}
+
 .pill {
   display: inline-flex;
   align-items: center;
@@ -309,6 +401,11 @@
   color: var(--warning-text);
 }
 
+.pill.muted-pill {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
 .ghost-btn {
   border: 1px solid var(--border);
   background: var(--surface);
@@ -316,6 +413,11 @@
   padding: 8px 12px;
   border-radius: 10px;
   cursor: pointer;
+}
+
+.ghost-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .ghost-btn.small {
@@ -331,6 +433,10 @@
   border-radius: 999px;
   font-weight: 600;
   cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .muted {

@@ -6,81 +6,136 @@
         <p class="muted">Track payments, refunds, and payout status.</p>
       </div>
       <div class="actions">
-        <button class="ghost-btn">Filter</button>
-        <button class="primary-btn">Export CSV</button>
+        <button class="ghost-btn" :disabled="!transactions.length">Filter</button>
+        <button class="primary-btn" :disabled="!transactions.length">Export CSV</button>
       </div>
     </div>
 
-    <div class="summary">
-      <div class="summary-card">
-        <div class="label">Today</div>
-        <div class="value">$4,280</div>
-        <div class="delta success">+12% vs yesterday</div>
-      </div>
-      <div class="summary-card">
-        <div class="label">This week</div>
-        <div class="value">$18,940</div>
-        <div class="delta info">+5% vs last week</div>
-      </div>
-      <div class="summary-card">
-        <div class="label">Refunds</div>
-        <div class="value">$320</div>
-        <div class="delta warning">3 pending</div>
-      </div>
+    <div v-if="loading" class="panel">
+      <p class="muted">Loading transactions...</p>
     </div>
-
-    <div class="table">
-      <div class="row header">
-        <span>Customer</span>
-        <span>Amount</span>
-        <span>Status</span>
-        <span>Date</span>
-        <span>Method</span>
-      </div>
-
-      <div class="row">
-        <div class="cell">
-          <div class="title">Acme Studio</div>
-          <div class="sub">Web redesign deposit</div>
-        </div>
-        <div class="cell">$2,500.00</div>
-        <div class="cell">
-          <span class="pill success">Paid</span>
-        </div>
-        <div class="cell">Jan 30, 2026</div>
-        <div class="cell">Visa •••• 4242</div>
-      </div>
-
-      <div class="row">
-        <div class="cell">
-          <div class="title">Northwind</div>
-          <div class="sub">Monthly retainer</div>
-        </div>
-        <div class="cell">$1,200.00</div>
-        <div class="cell">
-          <span class="pill pending">Pending</span>
-        </div>
-        <div class="cell">Jan 29, 2026</div>
-        <div class="cell">ACH transfer</div>
-      </div>
-
-      <div class="row">
-        <div class="cell">
-          <div class="title">Studio 47</div>
-          <div class="sub">Brand workshop</div>
-        </div>
-        <div class="cell">$800.00</div>
-        <div class="cell">
-          <span class="pill refund">Refunded</span>
-        </div>
-        <div class="cell">Jan 27, 2026</div>
-        <div class="cell">Mastercard •••• 1182</div>
-      </div>
+    <div v-else-if="error" class="panel">
+      <p class="muted">{{ error }}</p>
     </div>
+    <template v-else>
+      <div class="summary">
+        <div class="summary-card">
+          <div class="label">Today</div>
+          <div class="value">{{ formatMoney(summary.todayTotal, currency) }}</div>
+          <div class="delta success">{{ summary.todayDelta || "-" }}</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">This week</div>
+          <div class="value">{{ formatMoney(summary.weekTotal, currency) }}</div>
+          <div class="delta info">{{ summary.weekDelta || "-" }}</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">Refunds</div>
+          <div class="value">{{ formatMoney(summary.refundTotal, currency) }}</div>
+          <div class="delta warning">{{ summary.refundNote || "-" }}</div>
+        </div>
+      </div>
+
+      <div class="table">
+        <div class="row header">
+          <span>Customer</span>
+          <span>Amount</span>
+          <span>Status</span>
+          <span>Date</span>
+          <span>Method</span>
+        </div>
+
+        <div v-if="!transactions.length" class="row empty-row">
+          <div class="cell muted">No transactions yet.</div>
+        </div>
+
+        <div v-else v-for="transaction in transactions" :key="transaction.id || transaction.createdAt" class="row">
+          <div class="cell">
+            <div class="title">{{ transaction.customer || transaction.customerName || "-" }}</div>
+            <div class="sub">{{ transaction.description || transaction.note || "-" }}</div>
+          </div>
+          <div class="cell">{{ formatMoney(transaction.amount, currency) }}</div>
+          <div class="cell">
+            <span class="pill" :class="statusClass(transaction.status)">
+              {{ transaction.status || "-" }}
+            </span>
+          </div>
+          <div class="cell">{{ formatDate(transaction.createdAt || transaction.date) }}</div>
+          <div class="cell">{{ transaction.method || "-" }}</div>
+        </div>
+      </div>
+    </template>
   </section>
 </template>
 
-<script setup></script>
+<script setup>
+import { computed, onMounted, ref } from "vue";
+import { listTransactions } from "@/services/transactionsApi";
+
+const loading = ref(true);
+const error = ref("");
+const transactions = ref([]);
+const summary = ref({
+  todayTotal: null,
+  todayDelta: "",
+  weekTotal: null,
+  weekDelta: "",
+  refundTotal: null,
+  refundNote: "",
+});
+const currency = ref("USD");
+
+const loadTransactions = async () => {
+  loading.value = true;
+  error.value = "";
+  const response = await listTransactions();
+  if (response?.error) {
+    error.value = response.error;
+    transactions.value = [];
+  } else {
+    const data = response?.data || response || {};
+    if (Array.isArray(data.transactions)) {
+      transactions.value = data.transactions;
+    } else if (Array.isArray(data.data)) {
+      transactions.value = data.data;
+    } else if (Array.isArray(data)) {
+      transactions.value = data;
+    } else {
+      transactions.value = [];
+    }
+    summary.value = data.summary || summary.value;
+    currency.value = data.currency || currency.value;
+  }
+  loading.value = false;
+};
+
+onMounted(loadTransactions);
+
+const formatMoney = (value, currencyCode) => {
+  if (value === null || value === undefined || value === "") return "-";
+  const amount = Number(value);
+  if (Number.isNaN(amount)) return "-";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: currencyCode || "USD",
+  }).format(amount);
+};
+
+const formatDate = (value) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(date);
+};
+
+const statusClass = (status) => {
+  const value = String(status || "").toLowerCase();
+  if (value === "paid" || value === "completed") return "success";
+  if (value === "pending" || value === "processing") return "pending";
+  if (value === "refunded" || value === "refund") return "refund";
+  return "";
+};
+</script>
 
 <style scoped>
 .transactions {
@@ -172,6 +227,14 @@
   font-weight: 600;
 }
 
+.row.empty-row {
+  grid-template-columns: 1fr;
+}
+
+.row.empty-row .cell {
+  grid-column: 1 / -1;
+}
+
 .title {
   font-weight: 600;
 }
@@ -214,6 +277,12 @@
   padding: 8px 12px;
   border-radius: 10px;
   cursor: pointer;
+}
+
+.ghost-btn:disabled,
+.primary-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .primary-btn {

@@ -18,3 +18,15 @@ export const login = async (payload) => {
     return { error: toErrorMessage(error) };
   }
 };
+
+export const register = async (payload) => {
+  if (!payload) return { error: "Missing payload" };
+  try {
+    const response = await axios.post(`${API_BASE_URL}/api/auth/register`, payload, {
+      withCredentials: true,
+    });
+    return response.data;
+  } catch (error) {
+    return { error: toErrorMessage(error) };
+  }
+};

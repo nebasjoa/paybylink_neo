@@ -9,16 +9,6 @@
             <p class="info-copy">
               Manage your payment links, track conversions, and reconcile faster.
             </p>
-            <div class="stat-grid">
-              <div class="stat">
-                <div class="stat-value">2.4x</div>
-                <div class="stat-label">Faster payouts</div>
-              </div>
-              <div class="stat">
-                <div class="stat-value">98%</div>
-                <div class="stat-label">Customer success</div>
-              </div>
-            </div>
           </div>
         </section>
 
@@ -28,23 +18,14 @@
             <p class="muted">Use your account to continue.</p>
           </div>
 
-          <button class="oauth-btn">
-            <span class="google-mark"></span>
-            Continue with Google
-          </button>
-
-          <div class="divider">
-            <span>or</span>
-          </div>
-
           <form class="auth-form" @submit.prevent="handleLogin">
             <label class="field">
               <span>Email</span>
-              <input v-model="form.email" type="email" placeholder="you@company.com" required />
+              <input v-model="form.email" type="email" placeholder="Enter your email" required />
             </label>
             <label class="field">
               <span>Password</span>
-              <input v-model="form.password" type="password" placeholder="Your password" required />
+              <input v-model="form.password" type="password" placeholder="Enter your password" required />
             </label>
             <button class="primary-btn" type="submit" :disabled="isSubmitting">
               {{ isSubmitting ? "Signing in..." : "Sign in" }}
@@ -144,28 +125,6 @@ const handleLogin = async () => {
   margin-bottom: 18px;
 }
 
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.stat {
-  padding: 12px;
-  border-radius: 12px;
-  background: #fff;
-  border: 1px solid var(--border);
-}
-
-.stat-value {
-  font-weight: 700;
-  font-size: 18px;
-}
-
-.stat-label {
-  font-size: 12px;
-  color: var(--muted);
-}
 
 .auth-card {
   background: var(--surface);

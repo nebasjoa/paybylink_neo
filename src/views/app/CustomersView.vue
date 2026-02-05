@@ -16,28 +16,28 @@
         <form class="form" @submit.prevent="addCustomer">
           <label class="field">
             <span>Customer name</span>
-            <input v-model="form.name" type="text" placeholder="Alex Rivera" required />
+            <input v-model="form.name" type="text" placeholder="Customer name" required />
           </label>
 
           <label class="field">
             <span>Email address</span>
-            <input v-model="form.email" type="email" placeholder="alex@studio.io" required />
+            <input v-model="form.email" type="email" placeholder="Email address" required />
           </label>
 
           <div class="two-col">
             <label class="field">
               <span>Company</span>
-              <input v-model="form.company" type="text" placeholder="Rivera Studio" />
+              <input v-model="form.company" type="text" placeholder="Company" />
             </label>
             <label class="field">
               <span>Phone number</span>
-              <input v-model="form.phone" type="tel" placeholder="+1 (555) 120-4820" />
+              <input v-model="form.phone" type="tel" placeholder="Phone number" />
             </label>
           </div>
 
           <label class="field">
             <span>Notes</span>
-            <textarea v-model="form.notes" rows="3" placeholder="Preferred billing cadence, context, etc."></textarea>
+            <textarea v-model="form.notes" rows="3" placeholder="Notes"></textarea>
           </label>
 
           <button class="primary-btn" type="submit" :disabled="isSubmitting">
@@ -73,10 +73,10 @@
                   <span v-if="customer.company">• {{ customer.company }}</span>
                 </div>
               </div>
-              <div class="customer-tags">
-                <span class="pill" v-if="customer.phone">{{ customer.phone }}</span>
-                <span class="tag">{{ customer.lastActivity }}</span>
-              </div>
+            <div class="customer-tags">
+              <span class="pill" v-if="customer.phone">{{ customer.phone }}</span>
+              <span v-if="customer.lastActivity" class="tag">{{ customer.lastActivity }}</span>
+            </div>
             </div>
             <p v-if="customer.notes" class="customer-notes">{{ customer.notes }}</p>
             <div class="customer-actions">
@@ -162,17 +162,7 @@ export default {
         return;
       }
 
-      const created = response?.data || response;
-      const newCustomer = {
-        id: created?.id || Date.now(),
-        name: created?.name || payload.name,
-        email: created?.email || payload.email,
-        company: created?.company || payload.company,
-        phone: created?.phone || payload.phone,
-        notes: created?.notes || payload.notes,
-        lastActivity: created?.lastActivity || "Just added",
-      };
-      this.customers = [newCustomer, ...this.customers];
+      await this.loadCustomers();
       this.form = {
         name: "",
         email: "",

@@ -272,7 +272,6 @@ const customerName = computed(() => link.value?.customerName || link.value?.cust
 const providerLabel = computed(() => {
   const provider = String(link.value?.provider || "").toLowerCase();
   if (provider === "adyen") return "Adyen";
-  if (provider === "dummy") return "Dummy PSP";
   if (provider === "stripe") return "Stripe";
   return provider || "-";
 });

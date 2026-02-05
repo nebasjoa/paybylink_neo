@@ -16,7 +16,7 @@
         <form class="form">
           <label class="field">
             <span>Customer name</span>
-            <input v-model="form.customerName" type="text" placeholder="Alex Rivera" />
+            <input v-model="form.customerName" type="text" placeholder="Customer name" />
           </label>
 
           <label class="field">
@@ -24,7 +24,7 @@
             <input
               v-model="form.customerEmail"
               type="email"
-              placeholder="alex@studio.io"
+              placeholder="Customer email"
               required
             />
             <span v-if="fieldErrors.customerEmail" class="field-error">{{ fieldErrors.customerEmail }}</span>
@@ -33,31 +33,31 @@
           <div class="two-col">
             <label class="field">
               <span>Company</span>
-              <input v-model="form.customerCompany" type="text" placeholder="Rivera Studio" />
+              <input v-model="form.customerCompany" type="text" placeholder="Company" />
             </label>
             <label class="field">
               <span>Phone number</span>
-              <input v-model="form.customerPhone" type="tel" placeholder="+1 (555) 120-4820" />
+              <input v-model="form.customerPhone" type="tel" placeholder="Phone number" />
             </label>
           </div>
 
           <label class="field">
             <span>Link name</span>
-            <input v-model="form.linkName" type="text" placeholder="Website redesign deposit" />
+            <input v-model="form.linkName" type="text" placeholder="Link name" />
           </label>
 
           <label class="field">
             <span>Amount</span>
             <div class="input-row">
               <span class="pill">{{ settings.currency || "USD" }}</span>
-              <input v-model="form.amount" type="number" placeholder="2500" required min="0.01" step="0.01" />
+              <input v-model="form.amount" type="number" placeholder="Amount" required min="0.01" step="0.01" />
             </div>
             <span v-if="fieldErrors.amount" class="field-error">{{ fieldErrors.amount }}</span>
           </label>
 
           <label class="field">
             <span>Description</span>
-            <textarea v-model="form.description" rows="4" placeholder="What is this payment for?"></textarea>
+            <textarea v-model="form.description" rows="4" placeholder="Payment description"></textarea>
           </label>
 
           <div class="two-col">
@@ -67,7 +67,7 @@
             </label>
             <label class="field">
               <span>Invoice #</span>
-              <input v-model="form.invoice" type="text" placeholder="INV-2041" />
+              <input v-model="form.invoice" type="text" placeholder="Invoice number" />
             </label>
           </div>
 
@@ -97,15 +97,15 @@
         <div class="summary-card">
           <div class="summary-row">
             <span class="muted">Amount</span>
-            <strong>$2,500.00</strong>
+            <strong>{{ formattedAmount }}</strong>
           </div>
           <div class="summary-row">
             <span class="muted">Processing</span>
-            <strong>$72.50</strong>
+            <strong>{{ processingFeeLabel }}</strong>
           </div>
           <div class="summary-row total">
             <span>Total received</span>
-            <strong>$2,427.50</strong>
+            <strong>{{ netAmountLabel }}</strong>
           </div>
         </div>
         <button class="primary-btn" type="button" :disabled="isSubmitting" @click="createLink">
@@ -121,6 +121,7 @@
 
 <script>
 import axios from "axios";
+import { createPaymentLink } from "@/services/paymentLinksApi";
 import { getSettings } from "@/services/settingsApi";
 
 export default {
@@ -150,10 +151,42 @@ export default {
       },
       settings: {
         currency: "USD",
-        provider: "stripe",
+        provider: "",
         providerConfig: {},
       },
     };
+  },
+  computed: {
+    amountValue() {
+      const value = Number(this.form.amount);
+      return Number.isNaN(value) ? null : value;
+    },
+    formattedAmount() {
+      if (this.amountValue === null) return "-";
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: this.settings.currency || "USD",
+      }).format(this.amountValue);
+    },
+    processingFeeAmount() {
+      if (this.amountValue === null) return null;
+      return this.getProcessingFee(this.amountValue);
+    },
+    processingFeeLabel() {
+      if (this.processingFeeAmount === null) return "-";
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: this.settings.currency || "USD",
+      }).format(this.processingFeeAmount);
+    },
+    netAmountLabel() {
+      if (this.amountValue === null || this.processingFeeAmount === null) return "-";
+      const net = this.amountValue - this.processingFeeAmount;
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: this.settings.currency || "USD",
+      }).format(net);
+    },
   },
   mounted() {
     const { query } = this.$route;
@@ -177,17 +210,11 @@ export default {
       const response = await getSettings();
       if (response?.error) return;
       const data = response?.data || response || {};
-      const providerName = String(data?.providers?.provider || "").toLowerCase();
-      const provider =
-        providerName === "adyen"
-          ? "adyen"
-          : providerName === "dummy psp" || providerName === "dummy"
-          ? "dummy"
-          : "stripe";
+      const providerName = String(data?.providers?.provider || "").trim();
 
       this.settings = {
         currency: data?.business?.defaultCurrency || "USD",
-        provider,
+        provider: providerName,
         providerConfig: data?.providers || {},
       };
     },
@@ -236,6 +263,20 @@ export default {
       }
 
       return !this.fieldErrors.customerEmail && !this.fieldErrors.amount;
+    },
+    getProcessingFee(amount) {
+      const config = this.settings.providerConfig || {};
+      const percentRaw =
+        config.processingFeePercent ?? config.processingFeeRate ?? config.feePercent ?? null;
+      const flatRaw = config.processingFeeFlat ?? config.feeFlat ?? null;
+
+      const percent = percentRaw !== null ? Number(percentRaw) : null;
+      const flat = flatRaw !== null ? Number(flatRaw) : null;
+
+      if (percent === null && flat === null) return null;
+      const percentFee = !Number.isNaN(percent) ? amount * (percent / 100) : 0;
+      const flatFee = !Number.isNaN(flat) ? flat : 0;
+      return percentFee + flatFee;
     },
     async createLink() {
       if (!this.validateForm()) {
@@ -288,9 +329,12 @@ export default {
             headers: { "Content-Type": "multipart/form-data" },
           });
         } else {
-          response = await axios.post(`${baseUrl}/api/payment-links`, payload);
+          response = await createPaymentLink(payload);
         }
-        const created = response?.data || {};
+        if (response?.error) {
+          throw new Error(response.error);
+        }
+        const created = response?.data || response || {};
         const createdId = created.id || created._id || created.linkId || "";
         const createdUrl =
           created.quicklinkUrl || created.linkUrl || created.url || created.paymentLinkUrl || "";
